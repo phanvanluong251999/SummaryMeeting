@@ -1,0 +1,22 @@
+[10/10/2025 02:00 PM - Cuộc họp dự án Ứng dụng Quản lý Bán Hàng]
+
+Linh: Chào team, hôm nay chúng ta sẽ kiểm tra tiến độ sprint 3 và chuẩn bị kế hoạch cho bản release beta nhé.  
+Tuấn: Backend đã hoàn thành phần xử lý đơn hàng và API thống kê doanh thu. Còn phần quản lý tồn kho thì mới xong khoảng 70%.  
+Huyền: Bên frontend, em đã hoàn thiện giao diện dashboard doanh thu và biểu đồ bán hàng theo tháng. Tuy nhiên, cần thêm API để hiển thị chi tiết sản phẩm bán chạy.  
+Linh: Ok Tuấn, em hỗ trợ API đó sớm giúp Huyền nhé.  
+Tuấn: Dạ, em sẽ bổ sung trong hôm nay.  
+Mai: QA đã test sơ bộ module đăng nhập, phát hiện 2 lỗi nhỏ về hiển thị thông báo khi nhập sai mật khẩu. Em đã log lỗi lên Jira.  
+Huyền: Em cũng nhận được feedback từ client là họ muốn có tính năng export báo cáo doanh thu ra file Excel.  
+Linh: Ý kiến hay. Ta thêm vào backlog sprint 4 nhé.  
+Tuấn: Được, nhưng cần thêm endpoint riêng cho việc export dữ liệu.  
+Mai: Em sẽ viết test case trước để chuẩn bị.  
+Huyền: Ngoài ra, phần responsive trên mobile hiện vẫn chưa ổn. Ở màn hình nhỏ, biểu đồ bị lệch.  
+Linh: Ghi nhận. Huyền xử lý lại CSS và báo QA test lại giúp nhé.  
+Mai: Team QA tuần này có thể hoàn tất test regression cho module đơn hàng.  
+Tuấn: Có một lưu ý: hệ thống hiện chưa có cảnh báo khi tồn kho xuống thấp.  
+Linh: Tốt, ta thêm task “Low Stock Notification” vào backlog. Em estimate luôn trong Jira nhé Tuấn.  
+Tuấn: Ok, khoảng nửa ngày là xong.  
+Huyền: Khi nào mình dự kiến deploy bản beta?  
+Linh: Cuối tuần này, thứ 7. Cả team chuẩn bị bản demo và gửi báo cáo tiến độ trước thứ 6 nhé.  
+
+[03:10 PM - Kết thúc cuộc họp]
