@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tóm tắt cuộc họp</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="logo">
+          <i class="fas fa-file-alt"></i>
+          <h1>Tóm tắt cuộc họp</h1>
+        </div>
+        <p class="tagline">Biến cuộc họp dài thành những điểm chính ngắn gọn</p>
+      </header>
+
+      <div class="upload-container">
+        <div class="upload-area" id="drop-area">
+          <i class="fas fa-cloud-upload-alt"></i>
+          <p>Kéo thả file vào đây hoặc</p>
+          <label for="meeting_file" class="custom-file-upload">
+            Chọn file
+          </label>
+          <input
+            type="file"
+            id="meeting_file"
+            accept=".txt,.docx,.pdf,.mp3,.wav,.m4a"
+          />
+          <p class="file-info">Hỗ trợ: .txt, .docx, .pdf, .mp3, .wav, .m4a</p>
+          <p id="file-name" class="selected-file"></p>
+        </div>
+        <button id="summarize-btn" class="action-button" disabled>
+          <i class="fas fa-magic"></i> Tạo bản tóm tắt
+        </button>
+      </div>
+
+      <div class="content-container">
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="original">
+            Nội dung gốc
+          </button>
+          <button class="tab-btn" data-tab="summary">Bản tóm tắt</button>
+        </div>
+
+        <div class="tab-content">
+          <div id="original" class="tab-pane active">
+            <div class="content-box">
+              <div class="content-header">
+                <h2><i class="fas fa-file-alt"></i> Nội dung gốc</h2>
+                <div class="actions">
+                  <button
+                    class="icon-btn"
+                    id="copy-original"
+                    title="Sao chép nội dung"
+                  >
+                    <i class="fas fa-copy"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="content-body">
+                <pre id="original-text">
+Chưa có nội dung. Vui lòng tải lên file.</pre
+                >
+              </div>
+            </div>
+          </div>
+          <div id="summary" class="tab-pane">
+            <div class="content-box">
+              <div class="content-header">
+                <h2><i class="fas fa-list-alt"></i> Bản tóm tắt</h2>
+                <div class="actions">
+                  <button
+                    class="icon-btn"
+                    id="copy-summary"
+                    title="Sao chép nội dung"
+                  >
+                    <i class="fas fa-copy"></i>
+                  </button>
+                  <button
+                    class="icon-btn"
+                    id="download-summary"
+                    title="Tải xuống"
+                  >
+                    <i class="fas fa-download"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="content-body">
+                <pre id="summary-text">
+Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="loading" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>Đang xử lý...</p>
+      </div>
+
+      <footer>
+        <p>© 2025 Công cụ Tóm tắt Cuộc họp | Được hỗ trợ bởi AI</p>
+      </footer>
+    </div>
+
+    <script>
+      const fileInput = document.getElementById("meeting_file");
+      const originalText = document.getElementById("original-text");
+      const summaryText = document.getElementById("summary-text");
+      const summarizeBtn = document.getElementById("summarize-btn");
+      const fileName = document.getElementById("file-name");
+      const dropArea = document.getElementById("drop-area");
+      const loading = document.getElementById("loading");
+      const copyOriginal = document.getElementById("copy-original");
+      const copySummary = document.getElementById("copy-summary");
+      const downloadSummary = document.getElementById("download-summary");
+      let currentText = "";
+
+      // Tab switching
+      document.querySelectorAll(".tab-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+          document
+            .querySelectorAll(".tab-btn")
+            .forEach((btn) => btn.classList.remove("active"));
+          document
+            .querySelectorAll(".tab-pane")
+            .forEach((pane) => pane.classList.remove("active"));
+
+          button.classList.add("active");
+          document.getElementById(button.dataset.tab).classList.add("active");
+        });
+      });
+
+      // File upload handling
+      fileInput.addEventListener("change", handleFileSelect);
+
+      function handleFileSelect(e) {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        fileName.textContent = file.name;
+        dropArea.classList.add("has-file");
+
+        const formData = new FormData();
+        formData.append("meeting_file", file);
+
+        originalText.textContent = "Đang tải file...";
+
+        fetch("/load_file", { method: "POST", body: formData })
+          .then((res) => res.json())
+          .then((data) => {
+            originalText.textContent = data.text;
+            summaryText.textContent =
+              "Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.";
+            currentText = data.text;
+            summarizeBtn.disabled = false;
+          })
+          .catch((err) => {
+            console.error(err);
+            originalText.textContent =
+              "Có lỗi xảy ra khi tải file. Vui lòng thử lại.";
+          });
+      }
+
+      // Drag and drop functionality
+      ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+      });
+
+      function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      ["dragenter", "dragover"].forEach((eventName) => {
+        dropArea.addEventListener(
+          eventName,
+          () => {
+            dropArea.classList.add("highlight");
+          },
+          false
+        );
+      });
+
+      ["dragleave", "drop"].forEach((eventName) => {
+        dropArea.addEventListener(
+          eventName,
+          () => {
+            dropArea.classList.remove("highlight");
+          },
+          false
+        );
+      });
+
+      dropArea.addEventListener(
+        "drop",
+        (e) => {
+          const dt = e.dataTransfer;
+          const files = dt.files;
+
+          if (files.length) {
+            fileInput.files = files;
+            handleFileSelect();
+          }
+        },
+        false
+      );
+
+      // Summarize functionality
+      summarizeBtn.addEventListener("click", () => {
+        loading.style.display = "flex";
+
+        fetch("/summarize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: currentText }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            summaryText.textContent = data.summary;
+            // Switch to summary tab
+            document.querySelector('.tab-btn[data-tab="summary"]').click();
+          })
+          .catch((err) => {
+            console.error(err);
+            summaryText.textContent =
+              "Có lỗi xảy ra khi tạo bản tóm tắt. Vui lòng thử lại.";
+          })
+          .finally(() => {
+            loading.style.display = "none";
+          });
+      });
+
+      // Copy functionality
+      copyOriginal.addEventListener("click", () => {
+        copyToClipboard(originalText.textContent);
+        showToast("Đã sao chép nội dung gốc!");
+      });
+
+      copySummary.addEventListener("click", () => {
+        copyToClipboard(summaryText.textContent);
+        showToast("Đã sao chép bản tóm tắt!");
+      });
+
+      function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).catch((err) => {
+          console.error("Không thể sao chép: ", err);
+        });
+      }
+
+      // Download functionality
+      downloadSummary.addEventListener("click", () => {
+        const blob = new Blob([summaryText.textContent], {
+          type: "text/plain",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "tom-tat-cuoc-hop.txt";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast("Đã tải xuống bản tóm tắt!");
+      });
+
+      // Toast notification
+      function showToast(message) {
+        const toast = document.createElement("div");
+        toast.className = "toast";
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+          toast.classList.add("show");
+          setTimeout(() => {
+            toast.classList.remove("show");
+            setTimeout(() => {
+              document.body.removeChild(toast);
+            }, 300);
+          }, 2000);
+        }, 100);
+      }
+    </script>
+  </body>
+</html>

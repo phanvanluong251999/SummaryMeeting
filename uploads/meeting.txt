@@ -1,0 +1,29 @@
+[09:00 AM - Cuộc họp dự án Hệ thống Quản lý Sinh viên]
+
+Lan: Chào mọi người, hôm nay chúng ta sẽ cập nhật tiến độ và bàn về kế hoạch sprint tiếp theo nhé.
+Nam: Về phần backend API, hiện tại đã hoàn thành 85%, chủ yếu còn phần tích hợp với module đăng ký môn học.
+Hà: Bên UI/UX, chúng em đã hoàn thành xong giao diện màn hình đăng nhập, đăng ký môn học, còn thiếu phần dashboard thống kê.
+Minh: QA tuần này đã test thử module đăng ký tài khoản, phát hiện 3 bug liên quan đến xác thực email. Em đã log trên Jira rồi.
+Lan: Cảm ơn Minh. Nam có thể check sớm mấy bug này không?
+Nam: Ok, em sẽ fix trong hôm nay. Chắc không mất nhiều thời gian đâu.
+Hà: Ngoài ra, client có feedback là muốn màu sắc dashboard sáng hơn, hiện tại hơi tối, dễ gây khó nhìn.
+Lan: Được rồi, Hà note lại và update trên Figma, gửi client confirm trước khi chỉnh sửa nhé.
+Hà: Dạ vâng.
+Minh: Nhân tiện, nhóm QA đề xuất bổ sung test tự động cho form đăng ký, như vậy sẽ giảm thời gian regression test.
+Nam: Ý hay đấy, em sẽ hỗ trợ viết API mock cho QA.
+Lan: Rất tốt. Vậy QA và backend phối hợp, triển khai trong tuần này nhé.
+Hà: Deadline cho phần dashboard là thứ 6 tuần này, nên em sẽ cần thêm 1 người phụ để hoàn thành kịp.
+Lan: Ok, chị sẽ nhờ phòng nhân sự điều phối một bạn intern sang hỗ trợ em.
+Nam: Ngoài ra, hệ thống hiện chưa có kế hoạch backup database. Nếu mất dữ liệu thì nguy hiểm.
+Lan: Điểm quan trọng, Nam soạn đề xuất backup DB và gửi mail cho cả team trước thứ 5 nhé.
+Nam: Ok chị.
+Hà: Chúng ta có cần họp với client trong tuần này không?
+Lan: Có. Thứ 6 sẽ có meeting demo sản phẩm. Mọi người chuẩn bị slide tóm tắt tiến độ.
+Minh: Em nhận phần tổng hợp kết quả test để trình bày trong demo.
+Lan: Tốt. Như vậy thống nhất nhé:
+   - Nam fix bug + đề xuất backup DB
+   - Hà hoàn thiện dashboard + chỉnh UI theo feedback client
+   - Minh chuẩn bị báo cáo test
+   - Tất cả cập nhật Jira trước thứ 6
+
+[10:15 AM - Kết thúc cuộc họp]
