@@ -6,115 +6,1083 @@
     <title>Tóm tắt cuộc họp</title>
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}"
-    />
-    <link
-      rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
     />
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+      :root {
+        --primary: #4361ee;
+        --primary-light: #4895ef;
+        --primary-dark: #3f37c9;
+        --secondary: #4cc9f0;
+        --text-dark: #2b2d42;
+        --text-light: #8d99ae;
+        --background: #f8f9fa;
+        --white: #ffffff;
+        --success: #4caf50;
+        --danger: #f44336;
+        --warning: #ff9800;
+        --border-radius: 12px;
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.15);
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+      }
+
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: var(--text-dark);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .container {
+        background: var(--white);
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-lg);
+        max-width: 1200px;
+        width: 100%;
+        overflow: hidden;
+        position: relative;
+      }
+
+      /* ============ HEADER ============ */
+      header {
+        padding: 40px 30px;
+        text-align: center;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+        color: var(--white);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .logo i {
+        font-size: 3rem;
+        animation: float 3s ease-in-out infinite;
+      }
+
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+      }
+
+      h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 0;
+      }
+
+      .tagline {
+        font-size: 1rem;
+        opacity: 0.95;
+        margin-top: 5px;
+        font-weight: 300;
+      }
+
+      /* ============ UPLOAD AREA ============ */
+      .upload-container {
+        padding: 40px 30px;
+      }
+
+      .upload-area {
+        width: 100%;
+        border: 3px dashed var(--primary-light);
+        border-radius: var(--border-radius);
+        padding: 50px 20px;
+        text-align: center;
+        transition: var(--transition);
+        cursor: pointer;
+        background: linear-gradient(
+          135deg,
+          rgba(67, 97, 238, 0.03),
+          rgba(72, 149, 239, 0.03)
+        );
+        position: relative;
+      }
+
+      .upload-area:hover {
+        background: linear-gradient(
+          135deg,
+          rgba(67, 97, 238, 0.08),
+          rgba(72, 149, 239, 0.08)
+        );
+        border-color: var(--primary);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(67, 97, 238, 0.15);
+      }
+
+      .upload-area.highlight {
+        background: linear-gradient(
+          135deg,
+          rgba(67, 97, 238, 0.12),
+          rgba(72, 149, 239, 0.12)
+        );
+        border-color: var(--primary);
+        transform: scale(1.02);
+      }
+
+      .upload-area.has-file {
+        border-color: var(--success);
+        background: linear-gradient(
+          135deg,
+          rgba(76, 175, 80, 0.05),
+          rgba(76, 175, 80, 0.03)
+        );
+      }
+
+      .upload-area i {
+        font-size: 4rem;
+        color: var(--primary);
+        margin-bottom: 20px;
+        display: block;
+      }
+
+      .upload-area p {
+        margin-bottom: 20px;
+        color: var(--text-dark);
+        font-size: 1.1rem;
+      }
+
+      .file-info {
+        font-size: 0.85rem;
+        color: var(--text-light);
+        margin-top: 20px;
+      }
+
+      .selected-file {
+        font-weight: 600;
+        color: var(--primary);
+        margin-top: 15px;
+        padding: 12px 20px;
+        background: rgba(67, 97, 238, 0.1);
+        border-radius: 8px;
+        display: none;
+        align-items: center;
+        gap: 10px;
+        word-break: break-all;
+        animation: fadeIn 0.3s ease-out;
+      }
+
+      .upload-status {
+        display: none;
+        align-items: center;
+        gap: 12px;
+        margin-top: 20px;
+        padding: 16px 24px;
+        background: linear-gradient(
+          135deg,
+          rgba(76, 175, 80, 0.1),
+          rgba(76, 175, 80, 0.05)
+        );
+        border: 2px solid var(--success);
+        border-radius: 8px;
+        color: var(--success);
+        font-weight: 600;
+        animation: slideIn 0.5s ease-out;
+      }
+
+      input[type="file"] {
+        display: none;
+      }
+
+      .custom-file-upload {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 28px;
+        background: var(--white);
+        color: var(--primary);
+        border: 2px solid var(--primary);
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: var(--transition);
+        font-size: 1rem;
+        z-index: 2;
+        position: relative;
+      }
+
+      .custom-file-upload:hover {
+        background: var(--primary);
+        color: var(--white);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+      }
+
+      .action-button {
+        padding: 14px 32px;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+        color: var(--white);
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 20px;
+        position: relative;
+      }
+
+      .action-button.hidden {
+        display: none;
+      }
+
+      .action-button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(67, 97, 238, 0.3);
+      }
+
+      .action-button:disabled {
+        background: linear-gradient(135deg, #ccc, #aaa);
+        cursor: not-allowed;
+        opacity: 0.6;
+        transform: none !important;
+      }
+
+      /* ============ CONTENT AREA ============ */
+      .content-container {
+        padding: 0 30px 40px;
+        display: grid;
+        gap: 25px;
+      }
+
+      .content-box {
+        border: 1px solid #e8e8e8;
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        background: var(--white);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        transition: var(--transition);
+      }
+
+      .content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 25px;
+        background: linear-gradient(135deg, #f8f9fa, #ffffff);
+        border-bottom: 1px solid #e8e8e8;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .content-header h2 {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .content-header h2 i {
+        color: var(--primary);
+      }
+
+      .header-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .action-button.secondary {
+        background: linear-gradient(135deg, #6c757d, #5a6268);
+        padding: 10px 20px;
+        font-size: 0.9rem;
+        display: none;
+      }
+
+      .action-button.secondary.show {
+        display: inline-flex;
+      }
+
+      .action-button.success {
+        background: linear-gradient(135deg, #28a745, #218838);
+        padding: 10px 20px;
+        font-size: 0.9rem;
+        display: none;
+      }
+
+      .action-button.success.show {
+        display: inline-flex;
+      }
+
+      .content-body {
+        padding: 25px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .content-pre {
+        white-space: pre-wrap;
+        font-family: "Inter", sans-serif;
+        line-height: 1.8;
+        color: var(--text-dark);
+        font-size: 0.95rem;
+      }
+
+      /* ============ SUMMARY EDITOR ============ */
+      .summary-display {
+        display: block;
+      }
+
+      .summary-editor {
+        display: none;
+        animation: fadeIn 0.3s ease-out;
+      }
+
+      .editor-field {
+        margin-bottom: 20px;
+      }
+
+      .editor-field label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+      }
+
+      .form-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e8e8e8;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-family: "Inter", sans-serif;
+        transition: var(--transition);
+        background: #f8f9fa;
+      }
+
+      .form-textarea {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e8e8e8;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-family: "Inter", sans-serif;
+        transition: var(--transition);
+        background: #f8f9fa;
+        resize: vertical;
+        min-height: 200px;
+        line-height: 1.6;
+      }
+
+      .editor-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e8e8e8;
+      }
+
+      /* ============ LOADING OVERLAY ============ */
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.95);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        backdrop-filter: blur(5px);
+      }
+
+      .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 6px solid rgba(67, 97, 238, 0.2);
+        border-radius: 50%;
+        border-top-color: var(--primary);
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .loading-overlay p {
+        font-size: 1.1rem;
+        color: var(--text-dark);
+        font-weight: 500;
+      }
+
+      /* ============ TOAST NOTIFICATION ============ */
+      .toast {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        padding: 16px 28px;
+        border-radius: 12px;
+        color: var(--white);
+        font-weight: 500;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        max-width: 400px;
+      }
+
+      .toast.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
+
+      .toast.success {
+        background: linear-gradient(135deg, #4caf50, #45a049);
+      }
+
+      .toast.error {
+        background: linear-gradient(135deg, #f44336, #e53935);
+      }
+
+      .toast.info {
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+      }
+
+      /* ============ ANIMATIONS ============ */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ============ FLOATING CHATBOT ============ */
+      .chat-bubble {
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+        z-index: 1000;
+      }
+
+      .chat-btn {
+        width: 65px;
+        height: 65px;
+        border-radius: 50%;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+        border: none;
+        color: var(--white);
+        font-size: 1.8rem;
+        cursor: pointer;
+        box-shadow: 0 8px 25px rgba(67, 97, 238, 0.4);
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+
+      .chat-btn:hover {
+        transform: scale(1.1) translateY(-3px);
+        box-shadow: 0 12px 35px rgba(67, 97, 238, 0.5);
+      }
+
+      .chat-btn.active {
+        background: linear-gradient(135deg, var(--danger), #ff6b6b);
+      }
+
+      .chat-btn.pulse {
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          box-shadow: 0 8px 25px rgba(67, 97, 238, 0.4);
+        }
+        50% {
+          box-shadow: 0 8px 35px rgba(67, 97, 238, 0.7),
+            0 0 0 15px rgba(67, 97, 238, 0.1);
+        }
+      }
+
+      .chat-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: var(--danger);
+        color: var(--white);
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 700;
+        border: 3px solid var(--white);
+        animation: bounce 0.5s ease-in-out;
+      }
+
+      @keyframes bounce {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.2);
+        }
+      }
+
+      /* ============ CHAT PANEL ============ */
+      .chat-panel {
+        position: fixed;
+        bottom: 100px;
+        right: 25px;
+        width: 400px;
+        height: 600px;
+        background: var(--white);
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        display: flex;
+        flex-direction: column;
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+        pointer-events: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .chat-panel.open {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: all;
+      }
+
+      .chat-header {
+        padding: 20px;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+        color: var(--white);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 16px 16px 0 0;
+      }
+
+      .chat-header-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .chat-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        backdrop-filter: blur(10px);
+      }
+
+      .chat-header h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0;
+      }
+
+      .chat-status {
+        font-size: 0.8rem;
+        opacity: 0.9;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #4caf50;
+        animation: blink 2s infinite;
+      }
+
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .chat-close-btn {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: var(--white);
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+      }
+
+      .chat-close-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(90deg);
+      }
+
+      /* ============ CHAT MESSAGES ============ */
+      .chat-messages {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+        background: #f8f9fa;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .chat-messages::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .chat-messages::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .chat-messages::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 10px;
+      }
+
+      .chat-message {
+        display: flex;
+        gap: 10px;
+        animation: slideIn 0.3s ease-out;
+      }
+
+      .chat-message.user {
+        flex-direction: row-reverse;
+      }
+
+      .message-avatar {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--white);
+        font-size: 1.1rem;
+        flex-shrink: 0;
+      }
+
+      .message-bubble {
+        max-width: 75%;
+        padding: 12px 16px;
+        border-radius: 18px;
+        line-height: 1.5;
+        font-size: 0.95rem;
+      }
+
+      .chat-message.ai .message-bubble {
+        background: var(--white);
+        color: var(--text-dark);
+        border: 1px solid #e8e8e8;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border-radius: 18px 18px 18px 4px;
+      }
+
+      .chat-message.user .message-bubble {
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+        color: var(--white);
+        border-radius: 18px 18px 4px 18px;
+      }
+
+      .message-bubble p {
+        margin: 0;
+        margin-bottom: 8px;
+      }
+
+      .message-bubble p:last-child {
+        margin-bottom: 0;
+      }
+
+      /* Typing Indicator */
+      .typing-indicator .message-bubble {
+        padding: 16px 20px;
+      }
+
+      .typing-dots {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .typing-dots span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--primary-light);
+        animation: typing 1.4s infinite;
+      }
+
+      .typing-dots span:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      .typing-dots span:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes typing {
+        0%,
+        60%,
+        100% {
+          transform: translateY(0);
+          opacity: 0.7;
+        }
+        30% {
+          transform: translateY(-10px);
+          opacity: 1;
+        }
+      }
+
+      /* ============ CHAT INPUT ============ */
+      .chat-input-container {
+        border-top: 1px solid #e8e8e8;
+        background: var(--white);
+        border-radius: 0 0 16px 16px;
+      }
+
+      .chat-form {
+        padding: 15px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      #chat-input {
+        flex: 1;
+        padding: 12px 16px;
+        border: 2px solid #e8e8e8;
+        border-radius: 25px;
+        font-size: 0.95rem;
+        outline: none;
+        transition: var(--transition);
+        background: #f8f9fa;
+      }
+
+      #chat-input:focus {
+        border-color: var(--primary);
+        background: var(--white);
+      }
+
+      .chat-send-btn {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+        border: none;
+        color: var(--white);
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+      }
+
+      .chat-send-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+      }
+
+      /* ============ SUGGESTION CHIPS ============ */
+      .chat-suggestions {
+        padding: 10px 15px 15px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .suggestion-chip {
+        padding: 8px 14px;
+        background: var(--white);
+        border: 1px solid var(--primary-light);
+        border-radius: 20px;
+        color: var(--primary);
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: var(--transition);
+        white-space: nowrap;
+        font-weight: 500;
+      }
+
+      .suggestion-chip:hover {
+        background: var(--primary);
+        color: var(--white);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(67, 97, 238, 0.2);
+      }
+
+      /* ============ RESPONSIVE DESIGN ============ */
+      @media (max-width: 768px) {
+        body {
+          padding: 0;
+        }
+
+        .container {
+          border-radius: 0;
+          min-height: 100vh;
+        }
+
+        header {
+          padding: 25px 20px;
+        }
+
+        .upload-container,
+        .content-container {
+          padding: 25px 20px;
+        }
+
+        .upload-area {
+          padding: 40px 15px;
+        }
+
+        .chat-panel {
+          width: 100%;
+          height: 100%;
+          bottom: 0;
+          right: 0;
+          border-radius: 0;
+        }
+
+        .chat-bubble {
+          bottom: 20px;
+          right: 20px;
+        }
+      }
+
+      footer {
+        text-align: center;
+        padding: 25px;
+        background: linear-gradient(135deg, #f8f9fa, #ffffff);
+        color: var(--text-light);
+        border-top: 1px solid #e8e8e8;
+        font-size: 0.9rem;
+      }
+    </style>
   </head>
   <body>
     <div class="container">
       <header>
         <div class="logo">
           <i class="fas fa-file-alt"></i>
-          <h1>Tóm tắt cuộc họp</h1>
+          <div>
+            <h1>Tóm tắt Cuộc họp</h1>
+            <p class="tagline">Công cụ AI thông minh</p>
+          </div>
         </div>
-        <p class="tagline">Biến cuộc họp dài thành những điểm chính ngắn gọn</p>
       </header>
 
       <!-- Upload Area -->
       <div class="upload-container">
-        <div class="upload-area" id="drop-area">
+        <div class="upload-area" id="upload-area">
           <i class="fas fa-cloud-upload-alt"></i>
-          <p>Kéo thả file vào đây hoặc</p>
-          <label for="meeting_file" class="custom-file-upload">Chọn file</label>
+          <p><strong>Kéo thả file vào đây</strong> hoặc click để chọn</p>
+          <label class="custom-file-upload" for="meeting_file">
+            <i class="fas fa-folder-open"></i> Chọn file
+          </label>
           <input
-            type="file"
             id="meeting_file"
+            name="meeting_file"
+            type="file"
             accept=".txt,.docx,.pdf,.mp3,.wav,.m4a"
           />
-          <p class="file-info">Hỗ trợ: .txt, .docx, .pdf, .mp3, .wav, .m4a</p>
-          <p id="file-name" class="selected-file"></p>
+          <div class="file-info">
+            Hỗ trợ: TXT, DOCX, PDF, MP3, WAV, M4A (Tối đa 100MB)
+          </div>
+          <div class="selected-file" id="file-name">
+            <i class="fas fa-file"></i>
+            <span id="file-name-text"></span>
+            <i
+              class="fas fa-check-circle"
+              style="color: #4caf50; margin-left: 8px"
+            ></i>
+          </div>
         </div>
-        <button id="summarize-btn" class="action-button" disabled>
-          <i class="fas fa-magic"></i> Tạo bản tóm tắt
+        <button id="upload-btn" class="action-button" type="button">
+          <i class="fas fa-upload"></i> Tải lên
         </button>
+        <div id="upload-status" class="upload-status">
+          <i class="fas fa-check-circle"></i>
+          <span id="upload-status-text">
+            Đã tải lên: <strong id="uploaded-filename"></strong>
+          </span>
+        </div>
       </div>
 
-      <!-- Content Tabs -->
+      <!-- Content Display -->
       <div class="content-container">
-        <div class="tabs">
-          <button class="tab-btn active" data-tab="original">
-            Nội dung gốc
-          </button>
-          <button class="tab-btn" data-tab="summary">Bản tóm tắt</button>
-          <button class="tab-btn" data-tab="chatbot">Chatbot</button>
+        <div class="content-box">
+          <div class="content-header">
+            <h2><i class="fas fa-file-text"></i> Nội dung gốc</h2>
+            <button
+              id="summarize-btn"
+              class="action-button hidden"
+              type="button"
+            >
+              <i class="fas fa-magic"></i> Tạo bản tóm tắt
+            </button>
+          </div>
+          <div class="content-body">
+            <pre id="original-text" class="content-pre">
+Chưa có nội dung. Vui lòng tải lên file.</pre
+            >
+          </div>
         </div>
 
-        <div class="tab-content">
-          <!-- Nội dung gốc -->
-          <div id="original" class="tab-pane active">
-            <div class="content-box">
-              <div class="content-header">
-                <h2><i class="fas fa-file-alt"></i> Nội dung gốc</h2>
-                <div class="actions">
-                  <button class="icon-btn" id="copy-original" title="Sao chép">
-                    <i class="fas fa-copy"></i>
-                  </button>
-                </div>
-              </div>
-              <div class="content-body">
-                <pre id="original-text">
-Chưa có nội dung. Vui lòng tải lên file.</pre
-                >
-              </div>
+        <!-- Summary Section -->
+        <div class="content-box">
+          <div class="content-header">
+            <h2><i class="fas fa-list-check"></i> Bản tóm tắt</h2>
+            <div class="header-actions">
+              <button id="edit-summary-btn" class="action-button secondary">
+                <i class="fas fa-edit"></i> Chỉnh sửa
+              </button>
+              <button id="save-summary-btn" class="action-button success">
+                <i class="fas fa-save"></i> Lưu bản tóm tắt
+              </button>
             </div>
           </div>
-
-          <!-- Bản tóm tắt -->
-          <div id="summary" class="tab-pane">
-            <div class="content-box">
-              <div class="content-header">
-                <h2><i class="fas fa-list-alt"></i> Bản tóm tắt</h2>
-                <div class="actions">
-                  <button class="icon-btn" id="copy-summary" title="Sao chép">
-                    <i class="fas fa-copy"></i>
-                  </button>
-                  <button
-                    class="icon-btn"
-                    id="download-summary"
-                    title="Tải xuống"
-                  >
-                    <i class="fas fa-download"></i>
-                  </button>
-                </div>
-              </div>
-              <div class="content-body">
-                <pre id="summary-text">
+          <div class="content-body">
+            <div id="summary-display" class="summary-display">
+              <pre id="summary-text" class="content-pre">
 Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
-                >
+              >
+            </div>
+            <div id="summary-editor" class="summary-editor">
+              <div class="editor-field">
+                <label for="meeting-title">
+                  <i class="fas fa-heading"></i> Tiêu đề cuộc họp:
+                </label>
+                <input
+                  type="text"
+                  id="meeting-title"
+                  class="form-input"
+                  placeholder="Nhập tiêu đề cuộc họp..."
+                />
               </div>
-            </div>
-          </div>
-
-          <!-- Chatbot -->
-          <div id="chatbot" class="tab-pane">
-            <div class="content-header">
-              <h2><i class="fas fa-comments"></i> Chatbot</h2>
-            </div>
-
-            <div class="content-body">
-              <div id="chat-container" class="chat-container"></div>
-
-              <div class="chat-input">
+              <div class="editor-field">
+                <label for="meeting-date">
+                  <i class="fas fa-calendar"></i> Ngày:
+                </label>
+                <input type="date" id="meeting-date" class="form-input" />
+              </div>
+              <div class="editor-field">
+                <label for="summary-content">
+                  <i class="fas fa-file-alt"></i> Nội dung tóm tắt:
+                </label>
                 <textarea
-                  id="chat-question"
-                  placeholder="Nhập câu hỏi..."
-                  rows="2"
+                  id="summary-content"
+                  class="form-textarea"
+                  rows="15"
+                  placeholder="Chỉnh sửa nội dung tóm tắt..."
                 ></textarea>
-                <button id="send-chat" class="action-button">
-                  <i class="fas fa-paper-plane"></i> Gửi
+              </div>
+              <div class="editor-actions">
+                <button id="cancel-edit-btn" class="action-button secondary">
+                  <i class="fas fa-times"></i> Hủy
+                </button>
+                <button id="apply-edit-btn" class="action-button">
+                  <i class="fas fa-check"></i> Áp dụng
                 </button>
               </div>
             </div>
@@ -133,113 +1101,647 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
       </footer>
     </div>
 
-    <!-- Scripts -->
+    <!-- Floating Chatbot Bubble -->
+    <div id="chat-bubble" class="chat-bubble">
+      <button id="chat-toggle" class="chat-btn" aria-label="Mở trợ lý AI">
+        <i class="fas fa-comments"></i>
+        <span class="chat-badge" id="chat-badge">1</span>
+      </button>
+
+      <!-- Chat Panel -->
+      <div id="chat-panel" class="chat-panel">
+        <div class="chat-header">
+          <div class="chat-header-content">
+            <div class="chat-avatar">
+              <i class="fas fa-robot"></i>
+            </div>
+            <div>
+              <h3>Trợ lý Cuộc họp</h3>
+              <span class="chat-status">
+                <span class="status-dot"></span> Đang hoạt động
+              </span>
+            </div>
+          </div>
+          <button id="chat-close" class="chat-close-btn" aria-label="Đóng chat">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div id="chat-messages" class="chat-messages">
+          <!-- Initial message will be loaded dynamically -->
+        </div>
+
+        <div class="chat-input-container">
+          <form id="chat-form" class="chat-form">
+            <input
+              id="chat-input"
+              type="text"
+              placeholder="Hỏi về cuộc họp..."
+              autocomplete="off"
+              maxlength="500"
+            />
+            <button
+              type="submit"
+              class="chat-send-btn"
+              aria-label="Gửi tin nhắn"
+            >
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </form>
+          <div class="chat-suggestions" id="chat-suggestions">
+            <button
+              class="suggestion-chip"
+              data-question="Cuộc họp này bàn về gì?"
+            >
+              Cuộc họp này bàn về gì?
+            </button>
+            <button
+              class="suggestion-chip"
+              data-question="Những quyết định quan trọng là gì?"
+            >
+              Quyết định quan trọng
+            </button>
+            <button
+              class="suggestion-chip"
+              data-question="Có công việc nào cần làm không?"
+            >
+              Công việc cần làm
+            </button>
+            <button class="suggestion-chip" id="list-meetings-btn">
+              📅 Xem danh sách cuộc họp
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
     <script>
+      // DOM Elements
+      const uploadBtn = document.getElementById("upload-btn");
       const fileInput = document.getElementById("meeting_file");
+      const uploadArea = document.getElementById("upload-area");
       const originalText = document.getElementById("original-text");
       const summaryText = document.getElementById("summary-text");
       const summarizeBtn = document.getElementById("summarize-btn");
       const fileName = document.getElementById("file-name");
-      const dropArea = document.getElementById("drop-area");
+      const fileNameText = document.getElementById("file-name-text");
+      const uploadStatus = document.getElementById("upload-status");
+      const uploadedFilename = document.getElementById("uploaded-filename");
       const loading = document.getElementById("loading");
-      const copyOriginal = document.getElementById("copy-original");
-      const copySummary = document.getElementById("copy-summary");
-      const downloadSummary = document.getElementById("download-summary");
-      const chatContainer = document.getElementById("chat-container");
-      const chatQuestion = document.getElementById("chat-question");
-      const sendChat = document.getElementById("send-chat");
-      let currentText = "";
 
-      // ----- TAB SWITCH -----
-      document.querySelectorAll(".tab-btn").forEach((button) => {
-        button.addEventListener("click", () => {
-          document
-            .querySelectorAll(".tab-btn")
-            .forEach((btn) => btn.classList.remove("active"));
-          document
-            .querySelectorAll(".tab-pane")
-            .forEach((pane) => pane.classList.remove("active"));
-          button.classList.add("active");
-          document.getElementById(button.dataset.tab).classList.add("active");
+      // Summary editing elements
+      const summaryDisplay = document.getElementById("summary-display");
+      const summaryEditor = document.getElementById("summary-editor");
+      const editSummaryBtn = document.getElementById("edit-summary-btn");
+      const saveSummaryBtn = document.getElementById("save-summary-btn");
+      const cancelEditBtn = document.getElementById("cancel-edit-btn");
+      const applyEditBtn = document.getElementById("apply-edit-btn");
+      const meetingTitle = document.getElementById("meeting-title");
+      const meetingDate = document.getElementById("meeting-date");
+      const summaryContent = document.getElementById("summary-content");
+
+      // Chat Elements
+      const chatToggle = document.getElementById("chat-toggle");
+      const chatPanel = document.getElementById("chat-panel");
+      const chatClose = document.getElementById("chat-close");
+      const chatInput = document.getElementById("chat-input");
+      const chatForm = document.getElementById("chat-form");
+      const chatMessages = document.getElementById("chat-messages");
+      const chatBadge = document.getElementById("chat-badge");
+
+      let currentText = "";
+      let currentSummaryData = null;
+      let isUploading = false;
+      let isPanelOpen = false;
+
+      // Utility Functions
+      function showLoading(show, message = "Đang xử lý...") {
+        if (show) {
+          loading.style.display = "flex";
+          const loadingText = loading.querySelector("p");
+          if (loadingText) {
+            loadingText.textContent = message;
+          }
+        } else {
+          loading.style.display = "none";
+        }
+      }
+
+      function showToast(message, type = "info") {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.className = `toast ${type} show`;
+        setTimeout(() => {
+          toast.classList.remove("show");
+        }, 3000);
+      }
+
+      // File input change handler
+      fileInput.addEventListener("change", () => {
+        if (fileInput.files.length > 0) {
+          fileNameText.textContent = fileInput.files[0].name;
+          fileName.style.display = "inline-flex";
+          uploadArea.classList.add("has-file");
+          uploadBtn.style.display = "inline-flex";
+          uploadStatus.style.display = "none";
+        }
+      });
+
+      // Upload button click handler
+      uploadBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (isUploading) {
+          return;
+        }
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+          showToast("Vui lòng chọn file trước khi tải lên.", "error");
+          return;
+        }
+
+        isUploading = true;
+        uploadBtn.disabled = true;
+
+        const formData = new FormData();
+        formData.append("meeting_file", fileInput.files[0]);
+        showLoading(true, "Đang tải lên file...");
+
+        try {
+          const response = await fetch("/load_file", {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await response.json();
+          showLoading(false);
+          isUploading = false;
+          uploadBtn.disabled = false;
+
+          if (data.error) {
+            originalText.textContent = "Lỗi: " + data.error;
+            showToast("Lỗi: " + data.error, "error");
+          } else if (data.success) {
+            currentText = data.text || "";
+
+            // Update original text display
+            if (currentText) {
+              originalText.textContent = currentText;
+            } else {
+              originalText.textContent = "(Không thể trích xuất nội dung)";
+            }
+
+            // Reset summary text
+            summaryText.textContent = "Nhấn 'Tạo bản tóm tắt' để nhận tóm tắt.";
+
+            // Show the summarize button
+            summarizeBtn.classList.remove("hidden");
+
+            // Show upload success status
+            uploadBtn.style.display = "none";
+            fileName.style.display = "none";
+            uploadStatus.style.display = "flex";
+            uploadedFilename.textContent = data.filename;
+
+            showToast(
+              `Tải file thành công! (${data.length.toLocaleString()} ký tự)`,
+              "success"
+            );
+
+            // Reset summary section
+            editSummaryBtn.classList.remove("show");
+            saveSummaryBtn.classList.remove("show");
+            summaryDisplay.style.display = "block";
+            summaryEditor.style.display = "none";
+            currentSummaryData = null;
+          } else {
+            showToast("Lỗi: Phản hồi không hợp lệ", "error");
+          }
+        } catch (err) {
+          showLoading(false);
+          isUploading = false;
+          uploadBtn.disabled = false;
+          originalText.textContent = "Lỗi khi tải file.";
+          showToast("Lỗi khi tải file: " + err.message, "error");
+          console.error(err);
+        }
+      });
+
+      // Drag and Drop
+      ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+        uploadArea.addEventListener(eventName, preventDefaults, false);
+      });
+
+      function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      ["dragenter", "dragover"].forEach((eventName) => {
+        uploadArea.addEventListener(eventName, () => {
+          uploadArea.classList.add("highlight");
         });
       });
 
-      // ----- LOAD FILE -----
-      fileInput.addEventListener("change", handleFileSelect);
-      function handleFileSelect() {
-        const file = fileInput.files[0];
-        if (!file) return;
-        fileName.textContent = file.name;
-        dropArea.classList.add("has-file");
-        const formData = new FormData();
-        formData.append("meeting_file", file);
-        originalText.textContent = "Đang tải file...";
-
-        fetch("/load_file", { method: "POST", body: formData })
-          .then((res) => res.json())
-          .then((data) => {
-            originalText.textContent = data.text;
-            summaryText.textContent =
-              "Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.";
-            currentText = data.text;
-            summarizeBtn.disabled = false;
-          })
-          .catch(() => {
-            originalText.textContent = "Có lỗi xảy ra khi tải file.";
-          });
-      }
-
-      // ----- SUMMARIZE -----
-      summarizeBtn.addEventListener("click", () => {
-        loading.style.display = "flex";
-        fetch("/summarize", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: currentText }),
-        })
-          .then((res) => res.json())
-          .then((data) => {
-            summaryText.textContent = data.summary;
-            document.querySelector('.tab-btn[data-tab="summary"]').click();
-          })
-          .finally(() => {
-            loading.style.display = "none";
-          });
+      ["dragleave", "drop"].forEach((eventName) => {
+        uploadArea.addEventListener(eventName, () => {
+          uploadArea.classList.remove("highlight");
+        });
       });
 
-      // ----- CHATBOT -----
-      sendChat.addEventListener("click", async () => {
-        const question = chatQuestion.value.trim();
-        if (!question) return;
-
-        // Hiển thị câu hỏi của người dùng
-        chatContainer.innerHTML += `
-          <div class="chat-message user">
-            <div class="bubble">${question}</div>
-          </div>`;
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-        chatQuestion.value = "";
-
-        try {
-          const res = await fetch("/chatbot", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ question }),
-          });
-          const data = await res.json();
-
-          chatContainer.innerHTML += `
-            <div class="chat-message ai">
-              <div class="bubble">${data.answer || "Không có phản hồi."}</div>
-            </div>`;
-          chatContainer.scrollTop = chatContainer.scrollHeight;
-        } catch (err) {
-          chatContainer.innerHTML += `
-            <div class="chat-message ai">
-              <div class="bubble error">Lỗi khi gửi yêu cầu.</div>
-            </div>`;
+      uploadArea.addEventListener("drop", (e) => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          fileInput.files = files;
+          fileNameText.textContent = files[0].name;
+          fileName.style.display = "inline-flex";
+          uploadArea.classList.add("has-file");
+          uploadBtn.style.display = "inline-flex";
+          uploadStatus.style.display = "none";
         }
       });
+
+      // Click on upload area to select file
+      uploadArea.addEventListener("click", (e) => {
+        if (
+          !e.target.closest("label") &&
+          !e.target.closest("button") &&
+          !e.target.closest("input")
+        ) {
+          fileInput.click();
+        }
+      });
+
+      // Summarize
+      summarizeBtn.addEventListener("click", async () => {
+        const textToSummarize = currentText || originalText.textContent || "";
+        if (
+          !textToSummarize ||
+          textToSummarize === "Chưa có nội dung. Vui lòng tải lên file."
+        ) {
+          showToast(
+            "Không có nội dung để tóm tắt. Vui lòng tải lên file.",
+            "error"
+          );
+          return;
+        }
+
+        showLoading(true, "Đang tạo tóm tắt...");
+        try {
+          const response = await fetch("/summarize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: textToSummarize }),
+          });
+          const data = await response.json();
+          showLoading(false);
+
+          if (data.error) {
+            summaryText.textContent = "Lỗi: " + data.error;
+            showToast("Lỗi: " + data.error, "error");
+          } else {
+            currentSummaryData = {
+              summary: data.summary,
+              title: data.title,
+              date: data.date,
+            };
+
+            summaryText.textContent = data.summary;
+            editSummaryBtn.classList.add("show");
+            saveSummaryBtn.classList.add("show");
+            showToast("Tóm tắt hoàn tất!", "success");
+          }
+        } catch (err) {
+          showLoading(false);
+          summaryText.textContent = "Lỗi khi tạo tóm tắt.";
+          showToast("Lỗi khi tạo tóm tắt.", "error");
+          console.error(err);
+        }
+      });
+
+      // Summary editing functions
+      editSummaryBtn.addEventListener("click", () => {
+        if (currentSummaryData) {
+          meetingTitle.value = currentSummaryData.title || "";
+          meetingDate.value = currentSummaryData.date || "";
+          summaryContent.value = currentSummaryData.summary || "";
+
+          summaryDisplay.style.display = "none";
+          summaryEditor.style.display = "block";
+        }
+      });
+
+      cancelEditBtn.addEventListener("click", () => {
+        summaryDisplay.style.display = "block";
+        summaryEditor.style.display = "none";
+      });
+
+      applyEditBtn.addEventListener("click", () => {
+        if (currentSummaryData) {
+          currentSummaryData.title = meetingTitle.value;
+          currentSummaryData.date = meetingDate.value;
+          currentSummaryData.summary = summaryContent.value;
+          summaryText.textContent = summaryContent.value;
+        }
+        summaryDisplay.style.display = "block";
+        summaryEditor.style.display = "none";
+        showToast("Đã cập nhật bản tóm tắt!", "success");
+      });
+
+      // ============ SAVE SUMMARY BUTTON HANDLER ============
+      saveSummaryBtn.addEventListener("click", async () => {
+        if (!currentSummaryData) {
+          showToast("Không có dữ liệu để lưu.", "error");
+          return;
+        }
+
+        showLoading(true, "Đang lưu bản tóm tắt vào folder output...");
+        try {
+          const response = await fetch("/save_summary", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              summary: currentSummaryData.summary,
+              title: currentSummaryData.title,
+              date: currentSummaryData.date,
+            }),
+          });
+          const data = await response.json();
+          showLoading(false);
+
+          if (data.error) {
+            showToast("Lỗi khi lưu: " + data.error, "error");
+          } else {
+            showToast(`✅ Đã lưu vào output/${data.filename}`, "success");
+            saveSummaryBtn.disabled = true;
+            console.log("✅ File saved successfully to:", data.filepath);
+            console.log("📁 Filename:", data.filename);
+          }
+        } catch (err) {
+          showLoading(false);
+          showToast("Lỗi khi lưu bản tóm tắt.", "error");
+          console.error("❌ Save error:", err);
+        }
+      });
+
+      // Chat Functions
+      function openChat() {
+        chatPanel.classList.add("open");
+        chatToggle.classList.add("active");
+        isPanelOpen = true;
+        chatBadge.style.display = "none";
+        setTimeout(() => chatInput.focus(), 300);
+      }
+
+      function closeChat() {
+        chatPanel.classList.remove("open");
+        chatToggle.classList.remove("active");
+        isPanelOpen = false;
+      }
+
+      function showChatNotification() {
+        if (!isPanelOpen) {
+          chatBadge.style.display = "flex";
+          chatToggle.classList.add("pulse");
+          setTimeout(() => chatToggle.classList.remove("pulse"), 2000);
+        }
+      }
+
+      chatToggle.addEventListener("click", () => {
+        if (isPanelOpen) {
+          closeChat();
+        } else {
+          openChat();
+        }
+      });
+
+      chatClose.addEventListener("click", closeChat);
+
+      function appendMessage(text, type = "user") {
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `chat-message ${type}`;
+
+        if (type === "ai") {
+          messageDiv.innerHTML = `
+            <div class="message-avatar">
+              <i class="fas fa-robot"></i>
+            </div>
+            <div class="message-bubble">
+              <p>${text}</p>
+            </div>
+          `;
+        } else {
+          messageDiv.innerHTML = `
+            <div class="message-bubble">
+              <p>${text}</p>
+            </div>
+          `;
+        }
+
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      function showTypingIndicator() {
+        const typingDiv = document.createElement("div");
+        typingDiv.className = "chat-message ai typing-indicator";
+        typingDiv.id = "typing-indicator";
+        typingDiv.innerHTML = `
+          <div class="message-avatar">
+            <i class="fas fa-robot"></i>
+          </div>
+          <div class="message-bubble">
+            <div class="typing-dots">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        `;
+        chatMessages.appendChild(typingDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      function removeTypingIndicator() {
+        const indicator = document.getElementById("typing-indicator");
+        if (indicator) {
+          indicator.remove();
+        }
+      }
+
+      // Chat Form Submit
+      chatForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const question = chatInput.value.trim();
+        if (!question) return;
+
+        appendMessage(question, "user");
+        chatInput.value = "";
+        showTypingIndicator();
+
+        try {
+          const response = await fetch("/chatbot", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question: question, text: currentText }),
+          });
+          const data = await response.json();
+          removeTypingIndicator();
+
+          const answer =
+            data.answer ||
+            data.response ||
+            "Xin lỗi, tôi không thể trả lời câu hỏi này.";
+          appendMessage(answer, "ai");
+        } catch (err) {
+          removeTypingIndicator();
+          appendMessage("Lỗi: không thể kết nối máy chủ.", "ai");
+          console.error(err);
+        }
+      });
+
+      // Suggestion Chips
+      function attachSuggestionListeners() {
+        const suggestionChips = document.querySelectorAll(".suggestion-chip");
+        suggestionChips.forEach((chip) => {
+          chip.addEventListener("click", () => {
+            const question = chip.getAttribute("data-question");
+            if (question) {
+              chatInput.value = question;
+              chatForm.dispatchEvent(new Event("submit"));
+            }
+          });
+        });
+
+        // List meetings button
+        const listMeetingsBtn = document.getElementById("list-meetings-btn");
+        if (listMeetingsBtn) {
+          listMeetingsBtn.addEventListener("click", async () => {
+            showTypingIndicator();
+            try {
+              const response = await fetch("/list_meetings", { method: "GET" });
+              const data = await response.json();
+              removeTypingIndicator();
+
+              if (data.meetings && data.meetings.length > 0) {
+                let message = "📅 **Danh sách cuộc họp:**\n\n";
+                data.meetings.forEach((meeting, index) => {
+                  message += `${index + 1}. Ngày: ${
+                    meeting.date
+                  }\n   - Tiêu đề: ${meeting.title}\n   - Cập nhật: ${
+                    meeting.modified
+                  }\n\n`;
+                });
+                message += "\n💡 Bạn có thể hỏi về bất kỳ cuộc họp nào!";
+                appendMessage(message, "ai");
+              } else {
+                appendMessage("⚠️ Chưa có cuộc họp nào được lưu.", "ai");
+              }
+            } catch (err) {
+              removeTypingIndicator();
+              appendMessage("Lỗi: không thể lấy danh sách cuộc họp.", "ai");
+              console.error(err);
+            }
+          });
+        }
+      }
+
+      // Initialize suggestion listeners
+      attachSuggestionListeners();
+
+      // Load initial chatbot message with meeting list
+      async function loadInitialChatMessage() {
+        try {
+          const response = await fetch("/list_meetings", { method: "GET" });
+          const data = await response.json();
+
+          let welcomeMessage = `<p><strong>Xin chào! 👋</strong></p>
+            <p>Tôi là trợ lý AI cuộc họp của bạn.</p>`;
+
+          if (data.meetings && data.meetings.length > 0) {
+            welcomeMessage += `<p><strong>📋 Danh sách cuộc họp đã lưu (${data.meetings.length}):</strong></p><ul style="margin: 10px 0; padding-left: 20px; line-height: 1.8">`;
+
+            // Show only last 5 meetings
+            const recentMeetings = data.meetings.slice(0, 5);
+            recentMeetings.forEach((meeting, index) => {
+              const dateStr = meeting.date || meeting.filename.substring(0, 10);
+              welcomeMessage += `<li><strong>${meeting.title}</strong> (${dateStr})</li>`;
+            });
+
+            if (data.meetings.length > 5) {
+              welcomeMessage += `<li><em>... và ${
+                data.meetings.length - 5
+              } cuộc họp khác</em></li>`;
+            }
+
+            welcomeMessage += `</ul>
+              <p><strong>💡 Bạn có thể:</strong></p>
+              <ul style="margin: 10px 0; padding-left: 20px; line-height: 1.8">
+                <li>💬 Hỏi về nội dung bất kỳ cuộc họp nào</li>
+                <li>🔍 Tìm kiếm thông tin trong tất cả cuộc họp</li>
+                <li>📤 Tải lên file mới để tạo tóm tắt</li>
+              </ul>`;
+          } else {
+            welcomeMessage += `<p>📂 Chưa có cuộc họp nào trong folder <strong>output/</strong></p>
+              <p><strong>Bạn có thể:</strong></p>
+              <ul style="margin: 10px 0; padding-left: 20px; line-height: 1.8">
+                <li>📤 Tải lên file cuộc họp (TXT, DOCX, PDF, MP3, WAV)</li>
+                <li>✨ Tạo bản tóm tắt tự động</li>
+                <li>💾 Lưu vào folder output</li>
+              </ul>`;
+          }
+
+          const messageDiv = document.createElement("div");
+          messageDiv.className = "chat-message ai";
+          messageDiv.innerHTML = `
+            <div class="message-avatar">
+              <i class="fas fa-robot"></i>
+            </div>
+            <div class="message-bubble">
+              ${welcomeMessage}
+            </div>
+          `;
+          chatMessages.appendChild(messageDiv);
+        } catch (err) {
+          console.error("Error loading initial chat message:", err);
+          // Fallback message if API fails
+          const messageDiv = document.createElement("div");
+          messageDiv.className = "chat-message ai";
+          messageDiv.innerHTML = `
+            <div class="message-avatar">
+              <i class="fas fa-robot"></i>
+            </div>
+            <div class="message-bubble">
+              <p><strong>Xin chào! 👋</strong></p>
+              <p>Tôi là trợ lý AI cuộc họp của bạn. Tải lên file để bắt đầu!</p>
+            </div>
+          `;
+          chatMessages.appendChild(messageDiv);
+        }
+      }
+
+      // Load initial message on page load
+      loadInitialChatMessage();
+
+      // Close chat when clicking outside
+      document.addEventListener("click", (e) => {
+        if (
+          isPanelOpen &&
+          !chatPanel.contains(e.target) &&
+          !chatToggle.contains(e.target)
+        ) {
+          closeChat();
+        }
+      });
+
+      // Initialize
+      console.log("✅ Meeting Summarizer initialized successfully");
+      console.log("📁 Summaries will be saved to: output/");
+      console.log("🤖 Chatbot will read from: output/");
     </script>
   </body>
 </html>

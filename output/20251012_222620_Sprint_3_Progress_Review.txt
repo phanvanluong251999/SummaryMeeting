@@ -1,0 +1,34 @@
+================================================================================
+MEETING SUMMARY
+================================================================================
+Title: Sprint 3 Progress Review
+Date: 2025-10-10
+Generated: 2025-10-12 22:26:20
+File: 20251012_222620_Sprint_3_Progress_Review.txt
+================================================================================
+
+1. **Brief Overview**  
+Cuộc họp hôm nay tập trung vào việc kiểm tra tiến độ của sprint 3 và chuẩn bị cho bản release beta của ứng dụng quản lý bán hàng. Các thành viên đã cập nhật về tình hình hoàn thành các module và thảo luận về các tính năng cần bổ sung.
+
+2. **Key Discussion Points**  
+- Backend đã hoàn thành xử lý đơn hàng và API thống kê doanh thu, nhưng quản lý tồn kho chỉ hoàn thành 70%.  
+- Frontend đã hoàn thiện giao diện dashboard doanh thu và cần thêm API để hiển thị chi tiết sản phẩm bán chạy.  
+- QA đã phát hiện 2 lỗi nhỏ trong module đăng nhập và đã log lên Jira.  
+- Client yêu cầu tính năng export báo cáo doanh thu ra file Excel.  
+- Phần responsive trên mobile cần được cải thiện do biểu đồ bị lệch trên màn hình nhỏ.  
+- Hệ thống hiện chưa có cảnh báo khi tồn kho xuống thấp.
+
+3. **Decisions Made**  
+- Thêm tính năng export báo cáo doanh thu vào backlog của sprint 4.  
+- Thêm task “Low Stock Notification” vào backlog và ước lượng thời gian hoàn thành.  
+- Huyền sẽ xử lý lại CSS cho phần responsive và báo QA test lại.
+
+4. **Action Items**  
+- Tuấn sẽ bổ sung API cho Huyền trong hôm nay.  
+- Mai sẽ viết test case cho tính năng export báo cáo.  
+- Huyền sẽ xử lý lại CSS và thông báo cho QA.  
+- Tuấn sẽ ước lượng thời gian cho task “Low Stock Notification” trong Jira.  
+- Tất cả thành viên chuẩn bị bản demo và gửi báo cáo tiến độ trước thứ 6.  
+- Dự kiến deploy bản beta vào cuối tuần này, thứ 7.
+
+================================================================================

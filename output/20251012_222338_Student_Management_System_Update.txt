@@ -1,0 +1,35 @@
+================================================================================
+MEETING SUMMARY
+================================================================================
+Title: Student Management System Update
+Date: 2025-10-11
+Generated: 2025-10-12 22:23:38
+File: 20251012_222338_Student_Management_System_Update.txt
+================================================================================
+
+1. **Brief Overview**  
+Cuộc họp dự án Hệ thống Quản lý Sinh viên diễn ra để cập nhật tiến độ và thảo luận về kế hoạch sprint tiếp theo. Các thành viên đã báo cáo về tình hình phát triển backend, UI/UX, và QA, đồng thời đưa ra các đề xuất cải tiến và kế hoạch cho tuần tới.
+
+2. **Key Discussion Points**  
+   - Backend API đã hoàn thành 85%, còn lại phần tích hợp với module đăng ký môn học.  
+   - UI/UX đã hoàn thành giao diện đăng nhập và đăng ký môn học, nhưng thiếu phần dashboard thống kê.  
+   - QA phát hiện 3 bug liên quan đến xác thực email trong module đăng ký tài khoản.  
+   - Client yêu cầu điều chỉnh màu sắc dashboard cho sáng hơn.  
+   - Đề xuất bổ sung test tự động cho form đăng ký để giảm thời gian regression test.  
+   - Cần có kế hoạch backup database để tránh mất dữ liệu.  
+   - Cuộc họp với client sẽ diễn ra vào thứ 6 để demo sản phẩm.
+
+3. **Decisions Made**  
+   - Nam sẽ fix các bug và soạn đề xuất backup database.  
+   - Hà sẽ hoàn thiện dashboard và chỉnh sửa UI theo feedback của client.  
+   - Minh sẽ chuẩn bị báo cáo test cho buổi demo.  
+   - Tất cả thành viên sẽ cập nhật thông tin trên Jira trước thứ 6.
+
+4. **Action Items**  
+   - Nam: Fix bug và soạn đề xuất backup database, gửi mail cho cả team trước thứ 5.  
+   - Hà: Hoàn thiện dashboard và cập nhật UI theo feedback client, cần thêm 1 người phụ.  
+   - Minh: Chuẩn bị báo cáo test cho buổi demo.  
+   - Tất cả: Cập nhật Jira trước thứ 6.  
+   - Lan: Nhờ phòng nhân sự điều phối một bạn intern hỗ trợ Hà.
+
+================================================================================
