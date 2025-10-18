@@ -9,10 +9,13 @@ from pydub import AudioSegment
 from datetime import datetime
 import re
 import logging
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict
 from werkzeug.utils import secure_filename
 from functools import lru_cache
 import shutil
+import chromadb
+from chromadb.config import Settings
+from chromadb.utils import embedding_functions
 
 # -------- CONFIGURATION --------
 class Config:
@@ -21,7 +24,8 @@ class Config:
     CHUNK_LENGTH_MS = 30 * 1000  # 30 seconds
     TEMP_DIR = "audio_chunks"
     UPLOAD_DIR = "uploads"
-    OUTPUT_DIR = "output"  # Folder for saving summaries
+    OUTPUT_DIR = "outputs"
+    CHROMA_DIR = "chroma_db"  # ChromaDB storage directory
     MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
     ALLOWED_TEXT_EXTENSIONS = {'.txt', '.docx', '.pdf'}
     ALLOWED_AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a'}
@@ -55,10 +59,168 @@ except Exception as e:
     logger.error(f"Failed to initialize OpenAI client: {e}")
     client = None
 
+# -------- CHROMADB INITIALIZATION --------
+try:
+    # Initialize ChromaDB client with persistent storage
+    chroma_client = chromadb.PersistentClient(path=Config.CHROMA_DIR)
+    
+    # Create or get collection for meeting summaries
+    # KHÔNG dùng OpenAI embedding function để tránh lỗi
+    # ChromaDB sẽ dùng default embedding function
+    meeting_collection = chroma_client.get_or_create_collection(
+        name="meeting_summaries",
+        metadata={"description": "Collection of meeting summaries with semantic search"}
+    )
+    
+    logger.info(f"ChromaDB initialized successfully. Current count: {meeting_collection.count()}")
+except Exception as e:
+    logger.error(f"Failed to initialize ChromaDB: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
+    chroma_client = None
+    meeting_collection = None
+
+# -------- CHROMADB HELPER FUNCTIONS --------
+def save_summary_to_chromadb(
+    summary: str,
+    title: str,
+    date: str,
+    original_text: str,
+    filename: str
+) -> bool:
+    """Save meeting summary to ChromaDB for semantic search"""
+    try:
+        if not meeting_collection:
+            logger.warning("ChromaDB collection not available")
+            return False
+        
+        # Create unique ID based on date and filename
+        doc_id = f"{date}_{filename.replace('.txt', '')}"
+        
+        logger.info(f"Attempting to save to ChromaDB with ID: {doc_id}")
+        
+        # Prepare metadata
+        metadata = {
+            "title": title,
+            "date": date,
+            "filename": filename,
+            "created_at": datetime.now().isoformat(),
+            "text_length": len(original_text)
+        }
+        
+        logger.info(f"Metadata: {metadata}")
+        
+        # Add document to collection
+        # ChromaDB will automatically generate embeddings
+        meeting_collection.add(
+            documents=[summary],
+            metadatas=[metadata],
+            ids=[doc_id]
+        )
+        
+        # Verify it was added
+        new_count = meeting_collection.count()
+        logger.info(f"✅ Successfully saved to ChromaDB. New count: {new_count}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error saving to ChromaDB: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return False
+
+def search_meetings_chromadb(
+    query: str,
+    n_results: int = 5,
+    date_filter: Optional[str] = None
+) -> List[Dict]:
+    """Search meetings using semantic similarity"""
+    try:
+        if not meeting_collection:
+            logger.warning("ChromaDB collection not available")
+            return []
+        
+        # Prepare where filter for date if provided
+        where_filter = None
+        if date_filter:
+            where_filter = {"date": date_filter}
+        
+        # Perform semantic search
+        results = meeting_collection.query(
+            query_texts=[query],
+            n_results=n_results,
+            where=where_filter
+        )
+        
+        # Format results
+        formatted_results = []
+        if results and results['documents']:
+            for i in range(len(results['documents'][0])):
+                formatted_results.append({
+                    'id': results['ids'][0][i],
+                    'summary': results['documents'][0][i],
+                    'metadata': results['metadatas'][0][i],
+                    'distance': results['distances'][0][i] if 'distances' in results else None
+                })
+        
+        logger.info(f"ChromaDB search found {len(formatted_results)} results")
+        return formatted_results
+        
+    except Exception as e:
+        logger.error(f"Error searching ChromaDB: {e}")
+        return []
+
+def get_meeting_by_date_chromadb(date: str) -> List[Dict]:
+    """Get all meetings for a specific date from ChromaDB"""
+    try:
+        if not meeting_collection:
+            return []
+        
+        results = meeting_collection.get(
+            where={"date": date}
+        )
+        
+        formatted_results = []
+        if results and results['documents']:
+            for i in range(len(results['documents'])):
+                formatted_results.append({
+                    'id': results['ids'][i],
+                    'summary': results['documents'][i],
+                    'metadata': results['metadatas'][i]
+                })
+        
+        return formatted_results
+        
+    except Exception as e:
+        logger.error(f"Error getting meetings by date: {e}")
+        return []
+
+def get_all_meeting_dates_chromadb() -> List[str]:
+    """Get all unique meeting dates from ChromaDB"""
+    try:
+        if not meeting_collection:
+            return []
+        
+        # Get all documents
+        results = meeting_collection.get()
+        
+        # Extract unique dates
+        dates = set()
+        if results and results['metadatas']:
+            for metadata in results['metadatas']:
+                if 'date' in metadata:
+                    dates.add(metadata['date'])
+        
+        return sorted(list(dates), reverse=True)
+        
+    except Exception as e:
+        logger.error(f"Error getting meeting dates: {e}")
+        return []
+
 # -------- UTILITY FUNCTIONS --------
 def ensure_directories():
     """Ensure all required directories exist"""
-    for directory in [Config.UPLOAD_DIR, Config.OUTPUT_DIR, Config.TEMP_DIR]:
+    for directory in [Config.UPLOAD_DIR, Config.OUTPUT_DIR, Config.TEMP_DIR, Config.CHROMA_DIR]:
         os.makedirs(directory, exist_ok=True)
 
 def cleanup_temp_files(file_list: List[str], remove_dir: bool = True):
@@ -193,19 +355,16 @@ def load_file():
         filename = secure_filename(file.filename)
         ext = os.path.splitext(filename)[1].lower()
         
-        # Validate file type
         all_extensions = Config.ALLOWED_TEXT_EXTENSIONS | Config.ALLOWED_AUDIO_EXTENSIONS
         if not validate_file_extension(filename, all_extensions):
             return jsonify({"error": "Unsupported file format"}), 400
 
-        # Save file
         ensure_directories()
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
         
         logger.info(f"File uploaded: {filename}")
 
-        # Process based on file type
         text = None
         if ext in Config.ALLOWED_TEXT_EXTENSIONS:
             logger.info(f"Processing text file: {filename}")
@@ -301,34 +460,23 @@ def get_unique_filename(base_path: str, extension: str = ".txt") -> str:
 
 @app.route("/summarize", methods=["POST"])
 def summarize():
-    """Generate meeting summary using AI (without saving)"""
+    """Generate meeting summary using AI (NOT saving to ChromaDB yet)"""
     try:
-        logger.info("=" * 80)
         logger.info("SUMMARIZE ENDPOINT CALLED")
-        logger.info("=" * 80)
         
         if not client:
             logger.error("OpenAI client not available")
             return jsonify({"error": "AI service not available"}), 503
 
         data = request.json
-        logger.info(f"Request data keys: {data.keys() if data else 'No data'}")
-        
         text = data.get("text", "") if data else ""
-        logger.info(f"Text length received: {len(text)} characters")
         
-        if not text:
-            logger.error("No text provided in request")
-            return jsonify({"error": "No text provided"}), 400
-
-        if len(text) < 10:
-            logger.error(f"Text too short: {len(text)} characters")
+        if not text or len(text) < 10:
+            logger.error("Text too short or missing")
             return jsonify({"error": "Text too short to summarize"}), 400
 
-        logger.info(f"Text preview (first 200 chars): {text[:200]}")
         logger.info("Generating meeting summary...")
 
-        # Generate meeting summary
         prompt = f"""
         Summarize the following meeting transcript with key points, decisions, and action items. 
         Please ensure the summary is written in the same language as the transcript. 
@@ -343,7 +491,6 @@ def summarize():
         {text}
         """
 
-        logger.info("Calling OpenAI API...")
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -354,56 +501,43 @@ def summarize():
         )
         
         summary = response.choices[0].message.content.strip()
-        logger.info(f"Summary generated successfully. Length: {len(summary)} characters")
-        logger.info(f"Summary preview: {summary[:200]}")
-        
-        # Generate meeting title
-        logger.info("Generating meeting title...")
         meeting_title = generate_meeting_title(text)
-        logger.info(f"Generated title: {meeting_title}")
-        
-        # Extract or use current date
         meeting_date = parse_date_from_text(text)
-        logger.info(f"Meeting date: {meeting_date}")
         
-        # Store in session for later saving
+        # Store in session for later saving (when user clicks "Lưu")
         session["pending_summary"] = {
             "summary": summary,
             "title": meeting_title,
             "date": meeting_date,
             "original_text": text
         }
-        logger.info("Summary stored in session")
         
-        response_data = {
+        logger.info("Summary generated successfully (not saved to ChromaDB yet)")
+        
+        return jsonify({
             "success": True,
             "summary": summary,
             "title": meeting_title,
             "date": meeting_date
-        }
-        
-        logger.info("Sending successful response")
-        logger.info("=" * 80)
-        return jsonify(response_data)
+        })
     
     except Exception as e:
-        logger.error("=" * 80)
-        logger.error(f"ERROR in summarize endpoint: {e}")
-        logger.error(f"Error type: {type(e).__name__}")
-        logger.error(f"Error details: {str(e)}")
-        logger.error("=" * 80, exc_info=True)
+        logger.error(f"ERROR in summarize endpoint: {e}", exc_info=True)
         return jsonify({"error": f"Failed to generate summary: {str(e)}"}), 500
 
 @app.route("/save_summary", methods=["POST"])
 def save_summary():
-    """Save the edited summary to input folder with format: {datetime}_{title}.txt"""
+    """Save the edited summary to file AND ChromaDB"""
     try:
+        logger.info("="*80)
+        logger.info("SAVE_SUMMARY ENDPOINT CALLED")
+        logger.info("="*80)
+        
         data = request.json
         summary = data.get("summary", "")
         title = data.get("title", "")
         date = data.get("date", "")
         
-        # Get from session if not provided
         pending = session.get("pending_summary", {})
         if not summary and pending:
             summary = pending.get("summary", "")
@@ -412,6 +546,8 @@ def save_summary():
         if not date and pending:
             date = pending.get("date", datetime.now().strftime("%Y-%m-%d"))
         
+        original_text = pending.get("original_text", "")
+        
         # Allow user to edit title
         if data.get("title"):
             title = data.get("title")
@@ -419,30 +555,25 @@ def save_summary():
         if not summary:
             return jsonify({"error": "No summary to save"}), 400
         
-        # Create filename with format: YYYYMMDD_HHMMSS_{title}.txt
-        current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+        logger.info(f"Saving summary: title={title}, date={date}")
+        
+        timestamp = datetime.now().strftime("%H%M%S")
         safe_title = sanitize_filename(title)
-        filename = f"{current_datetime}_{safe_title}.txt"
+        base_filename = f"{date}_{timestamp}_{safe_title}"
         
-        # Ensure unique filename
         ensure_directories()
-        output_file = os.path.join(Config.OUTPUT_DIR, filename)
+        output_file = get_unique_filename(
+            os.path.join(Config.OUTPUT_DIR, base_filename),
+            ".txt"
+        )
         
-        # If file exists, add counter
-        counter = 1
-        while os.path.exists(output_file):
-            filename = f"{current_datetime}_{safe_title}_{counter}.txt"
-            output_file = os.path.join(Config.OUTPUT_DIR, filename)
-            counter += 1
-        
-        # Create meeting record with metadata
-        meeting_record = f"""{'='*80}
+        meeting_record = f"""
+{'='*80}
 MEETING SUMMARY
 {'='*80}
 Title: {title}
 Date: {date}
 Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-File: {filename}
 {'='*80}
 
 {summary.strip()}
@@ -450,74 +581,47 @@ File: {filename}
 {'='*80}
 """
         
-        # Save to input folder
+        # Save to file
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(meeting_record)
 
-        logger.info(f"Summary saved to {output_file}")
+        logger.info(f"Summary saved to file: {output_file}")
         
-        # Clear pending summary from session
+        filename = os.path.basename(output_file)
+        
+        # ⭐ SAVE TO CHROMADB
+        logger.info("Attempting to save to ChromaDB...")
+        chromadb_saved = save_summary_to_chromadb(
+            summary=summary,
+            title=title,
+            date=date,
+            original_text=original_text,
+            filename=filename
+        )
+        
+        if chromadb_saved:
+            logger.info("✅ Successfully saved to ChromaDB")
+        else:
+            logger.error("❌ Failed to save to ChromaDB")
+        
         session.pop("pending_summary", None)
         
         return jsonify({
             "success": True,
-            "message": "Summary saved successfully to output folder",
+            "message": "Summary saved successfully",
             "filename": filename,
-            "filepath": output_file,
             "title": title,
-            "date": date
+            "date": date,
+            "chromadb_saved": chromadb_saved
         })
     
     except Exception as e:
         logger.error(f"Error in save_summary: {e}", exc_info=True)
         return jsonify({"error": f"Failed to save summary: {str(e)}"}), 500
 
-def load_meeting_from_file(filepath: str) -> Optional[dict]:
-    """Load meeting data from a file"""
-    try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            content = f.read()
-            
-        # Parse metadata
-        title_match = re.search(r"Title:\s*(.+)", content)
-        date_match = re.search(r"Date:\s*(.+)", content)
-        file_match = re.search(r"File:\s*(.+)", content)
-        
-        # Extract summary (content after second separator)
-        parts = content.split("="*80)
-        summary = parts[2].strip() if len(parts) > 2 else ""
-        
-        return {
-            "title": title_match.group(1).strip() if title_match else "Unknown",
-            "date": date_match.group(1).strip() if date_match else "",
-            "filename": file_match.group(1).strip() if file_match else os.path.basename(filepath),
-            "summary": summary,
-            "filepath": filepath
-        }
-    except Exception as e:
-        logger.error(f"Error loading meeting from {filepath}: {e}")
-        return None
-
-def get_all_meetings() -> List[dict]:
-    """Get all meetings from output folder"""
-    meetings = []
-    ensure_directories()
-    
-    if os.path.exists(Config.OUTPUT_DIR):
-        for filename in os.listdir(Config.OUTPUT_DIR):
-            if filename.endswith(".txt"):
-                filepath = os.path.join(Config.OUTPUT_DIR, filename)
-                meeting_data = load_meeting_from_file(filepath)
-                if meeting_data:
-                    meetings.append(meeting_data)
-    
-    # Sort by filename (datetime is in filename)
-    meetings.sort(key=lambda x: x["filename"], reverse=True)
-    return meetings
-
 @app.route("/chatbot", methods=["POST"])
 def chatbot():
-    """Handle chatbot interactions with meeting context"""
+    """Handle chatbot interactions with ChromaDB semantic search"""
     try:
         if not client:
             return jsonify({"error": "AI service not available"}), 503
@@ -528,39 +632,30 @@ def chatbot():
         if not question:
             return jsonify({"error": "No question provided"}), 400
 
-        # Load all meetings from input folder
-        all_meetings = get_all_meetings()
-        
-        # Create context from all meetings
-        context = "Available meetings:\n\n"
-        for meeting in all_meetings[:10]:  # Limit to last 10 meetings
-            context += f"Title: {meeting['title']}\n"
-            context += f"Date: {meeting['date']}\n"
-            context += f"Summary: {meeting['summary'][:300]}...\n\n"
-        
-        # Get chat history
         chat_history = session.get("chat_history", [])
+
+        # Use ChromaDB for semantic search
+        search_results = search_meetings_chromadb(question, n_results=3)
+        
+        # Build context from search results
+        context = ""
+        if search_results:
+            context = "Relevant meeting information:\n\n"
+            for result in search_results:
+                metadata = result['metadata']
+                context += f"Meeting: {metadata['title']} (Date: {metadata['date']})\n"
+                context += f"Summary: {result['summary'][:500]}...\n\n"
         
         # Build messages
         messages = [
-            {"role": "system", "content": f"""You are a helpful meeting assistant. 
-You have access to meeting summaries from the output folder. 
-Use this information to answer user questions about meetings.
-
-{context}
-
-When answering:
-- Be specific and cite which meeting you're referring to
-- If information is not available, say so politely
-- Suggest related information if available
-- Answer in the same language as the question"""}
+            {"role": "system", "content": f"""You are a meeting assistant that helps answer questions about meetings.
+            Use the following context to answer the user's question. If the context doesn't contain relevant information, say so.
+            
+            {context}"""}
         ]
-        
-        # Add chat history
         messages.extend(chat_history[-10:])
         messages.append({"role": "user", "content": question})
 
-        # Get AI response
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
@@ -568,8 +663,12 @@ When answering:
         )
 
         answer = response.choices[0].message.content or "I'm not sure how to answer that."
+        
+        # Add source information
+        if search_results:
+            sources = [f"{r['metadata']['title']} ({r['metadata']['date']})" for r in search_results]
+            answer += f"\n\n💡 _Nguồn: {', '.join(sources)}_"
 
-        # Update chat history
         chat_history.append({"role": "user", "content": question})
         chat_history.append({"role": "assistant", "content": answer})
         session["chat_history"] = chat_history[-20:]
@@ -582,17 +681,28 @@ When answering:
 
 @app.route("/list_meetings", methods=["GET"])
 def list_meetings():
-    """List all available meeting summaries from output folder"""
+    """List all available meeting summaries from ChromaDB"""
     try:
-        meetings = get_all_meetings()
+        dates = get_all_meeting_dates_chromadb()
         
-        # Group by date
+        meetings = []
         grouped_meetings = {}
-        for meeting in meetings:
-            date = meeting["date"]
-            if date not in grouped_meetings:
-                grouped_meetings[date] = []
-            grouped_meetings[date].append(meeting)
+        
+        for date in dates:
+            date_meetings = get_meeting_by_date_chromadb(date)
+            grouped_meetings[date] = []
+            
+            for meeting in date_meetings:
+                metadata = meeting['metadata']
+                meeting_info = {
+                    "date": metadata['date'],
+                    "title": metadata['title'],
+                    "filename": metadata['filename'],
+                    "created": metadata.get('created_at', ''),
+                    "id": meeting['id']
+                }
+                meetings.append(meeting_info)
+                grouped_meetings[date].append(meeting_info)
         
         return jsonify({
             "meetings": meetings,
@@ -603,6 +713,39 @@ def list_meetings():
     except Exception as e:
         logger.error(f"Error listing meetings: {e}")
         return jsonify({"error": "Failed to list meetings"}), 500
+
+@app.route("/search_meetings", methods=["POST"])
+def search_meetings():
+    """Search meetings using semantic search"""
+    try:
+        data = request.json
+        query = data.get("query", "").strip()
+        n_results = data.get("n_results", 5)
+        
+        if not query:
+            return jsonify({"error": "No search query provided"}), 400
+        
+        results = search_meetings_chromadb(query, n_results=n_results)
+        
+        formatted_results = []
+        for result in results:
+            formatted_results.append({
+                "id": result['id'],
+                "title": result['metadata']['title'],
+                "date": result['metadata']['date'],
+                "summary": result['summary'][:300] + "...",
+                "relevance": 1 - result['distance'] if result['distance'] else 1.0
+            })
+        
+        return jsonify({
+            "success": True,
+            "results": formatted_results,
+            "total": len(formatted_results)
+        })
+    
+    except Exception as e:
+        logger.error(f"Error searching meetings: {e}")
+        return jsonify({"error": "Failed to search meetings"}), 500
 
 # -------- ERROR HANDLERS --------
 @app.errorhandler(413)
@@ -617,5 +760,4 @@ def internal_server_error(error):
 # -------- MAIN --------
 if __name__ == "__main__":
     ensure_directories()
-    logger.info(f"Summaries will be saved to: {os.path.abspath(Config.OUTPUT_DIR)}")
     app.run(debug=True, host='0.0.0.0', port=5000)
