@@ -740,18 +740,8 @@ Available Context:
         )
 
         raw_answer = answer_response.choices[0].message.content or "Xin lỗi, tôi không chắc cách trả lời câu hỏi đó."
-
         # --- STEP 5: Format response with meeting references ---
-        formatted_answer = f"💬 **Câu trả lời:**\n{raw_answer.strip()}\n"
-        
-        if meeting_details:
-            formatted_answer += f"\n\n📚 **Nguồn tham khảo ({len(meeting_details)} cuộc họp):**\n"
-            for meeting in meeting_details:
-                formatted_answer += f"\n{meeting['index']}. **{meeting['title']}**\n"
-                formatted_answer += f"   📅 Ngày: {meeting['date']}\n"
-                formatted_answer += f"   🎯 Độ liên quan: {meeting['relevance']}%\n"
-                if meeting['filename']:
-                    formatted_answer += f"   📄 File: {meeting['filename']}\n"
+        formatted_answer = f"{raw_answer.strip()}\n"
 
         # --- STEP 6: Update chat history ---
         chat_history.append({"role": "user", "content": question})
