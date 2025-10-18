@@ -61,18 +61,22 @@ except Exception as e:
 
 # -------- CHROMADB INITIALIZATION --------
 try:
-    # Initialize ChromaDB client with persistent storage
     chroma_client = chromadb.PersistentClient(path=Config.CHROMA_DIR)
-    
-    # Create or get collection for meeting summaries
-    # KHÔNG dùng OpenAI embedding function để tránh lỗi
-    # ChromaDB sẽ dùng default embedding function
+
+    # Dùng text-embedding-3-small để tăng độ chính xác tìm kiếm
+    openai_ef = embedding_functions.OpenAIEmbeddingFunction(
+        api_base="https://aiportalapi.stu-platform.live/jpe",
+        api_key="sk-GRpLsKVWmd1jVxaI7yssZA",
+        model_name="text-embedding-3-small"
+    )
+
     meeting_collection = chroma_client.get_or_create_collection(
         name="meeting_summaries",
+        embedding_function=openai_ef,
         metadata={"description": "Collection of meeting summaries with semantic search"}
     )
-    
-    logger.info(f"ChromaDB initialized successfully. Current count: {meeting_collection.count()}")
+
+    logger.info(f"✅ ChromaDB initialized with text-embedding-3-small. Current count: {meeting_collection.count()}")
 except Exception as e:
     logger.error(f"Failed to initialize ChromaDB: {e}")
     import traceback
@@ -621,32 +625,76 @@ Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 @app.route("/chatbot", methods=["POST"])
 def chatbot():
-    """Handle chatbot interactions with ChromaDB semantic search"""
     try:
         if not client:
-            return jsonify({"error": "AI service not available"}), 503
+            return jsonify({"error": "AI service unavailable"}), 503
 
         data = request.json
         question = data.get("question", "").strip()
-        
         if not question:
             return jsonify({"error": "No question provided"}), 400
 
         chat_history = session.get("chat_history", [])
 
-        # Use ChromaDB for semantic search
-        search_results = search_meetings_chromadb(question, n_results=3)
-        
-        # Build context from search results
+        # --- STEP 1: Classify question ---
+        now = datetime.now()  # Lấy thời gian hiện tại
+
+        year = now.year
+        month = now.month
+        function_spec = {
+            "name": "classify_question",
+            "description": "Determine whether the question is about a date or a topic",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "type": {"type": "string", "enum": ["date", "topic"]},
+                    "date": {"type": "string", "description": f"The date in YYYY-MM-DD format. If content just has day, set month is {month} and year is {year}."}
+                },
+                "required": ["type"]
+            }
+        }
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a classifier for user questions about meetings."},
+                {"role": "user", "content": question}
+            ],
+            functions=[function_spec],
+            function_call="auto",
+            max_tokens=100,
+            temperature=0
+        )
+
+        call = response.choices[0].message
+        classification = {"type": "topic", "date": None}
+
+        # ✅ FIX: compatible with new OpenAI SDK
+        if hasattr(call, "function_call") and call.function_call:
+            args_str = call.function_call.arguments
+            if isinstance(args_str, str):
+                try:
+                    args = json.loads(args_str)
+                    classification.update(args)
+                except json.JSONDecodeError:
+                    logger.warning(f"⚠️ Failed to parse arguments: {args_str}")
+
+        logger.info(f"🧩 Classified as: {classification}")
+
+        # --- STEP 2: Search with ChromaDB ---
+        date_filter = classification.get("date") if classification["type"] == "date" else None
+        search_results = search_meetings_chromadb(question, n_results=100, date_filter=date_filter)
+
+        # --- STEP 3: Build context ---
         context = ""
         if search_results:
             context = "Relevant meeting information:\n\n"
-            for result in search_results:
-                metadata = result['metadata']
-                context += f"Meeting: {metadata['title']} (Date: {metadata['date']})\n"
-                context += f"Summary: {result['summary'][:500]}...\n\n"
-        
-        # Build messages
+            for idx, result in enumerate(search_results):
+                meta = result["metadata"]
+                print(result['summary'])
+                context += f"Index: {idx} • {meta['title']} ({meta['date']})\n  → {result['summary'][:400]}...\n\n"
+
+
         messages = [
             {"role": "system", "content": f"""You are a meeting assistant that helps answer questions about meetings.
             Use the following context to answer the user's question. If the context doesn't contain relevant information, say so.
@@ -656,27 +704,36 @@ def chatbot():
         messages.extend(chat_history[-10:])
         messages.append({"role": "user", "content": question})
 
-        response = client.chat.completions.create(
+        # --- STEP 4: Generate answer ---
+        answer_response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
-            temperature=0.3
+            temperature=0,
+            max_tokens=1000
         )
 
-        answer = response.choices[0].message.content or "I'm not sure how to answer that."
-        
-        # Add source information
-        if search_results:
-            sources = [f"{r['metadata']['title']} ({r['metadata']['date']})" for r in search_results]
-            answer += f"\n\n💡 _Nguồn: {', '.join(sources)}_"
+        raw_answer = answer_response.choices[0].message.content or "I'm not sure how to answer that."
+
+        formatted_answer = f"💬 **Câu trả lời:**\n{raw_answer.strip()}\n"
+        # if search_results:
+        #     formatted_answer += "\n\n📚 **Thông tin tham khảo:**\n"
+        #     for result in search_results:
+        #         meta = result["metadata"]
+        #         formatted_answer += f"- {meta['title']} ({meta['date']})\n"
 
         chat_history.append({"role": "user", "content": question})
-        chat_history.append({"role": "assistant", "content": answer})
+        chat_history.append({"role": "assistant", "content": formatted_answer})
         session["chat_history"] = chat_history[-20:]
 
-        return jsonify({"answer": answer})
-    
+        return jsonify({
+            "answer": formatted_answer,
+            "classification": classification,
+            "sources": [{"title": r["metadata"]["title"], "date": r["metadata"]["date"]} for r in search_results],
+            "count": len(search_results)
+        })
+
     except Exception as e:
-        logger.error(f"Error in chatbot: {e}")
+        logger.error(f"Error in chatbot: {e}", exc_info=True)
         return jsonify({"error": "Failed to process question"}), 500
 
 @app.route("/list_meetings", methods=["GET"])

@@ -1014,11 +1014,7 @@
         <div class="content-box">
           <div class="content-header">
             <h2><i class="fas fa-file-text"></i> Nội dung gốc</h2>
-            <button
-              id="summarize-btn"
-              class="action-button hidden"
-              type="button"
-            >
+            <button id="summarize-btn" class="action-button" type="button">
               <i class="fas fa-magic"></i> Tạo bản tóm tắt
             </button>
           </div>
@@ -1632,9 +1628,7 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
                 data.meetings.forEach((meeting, index) => {
                   message += `${index + 1}. Ngày: ${
                     meeting.date
-                  }\n   - Tiêu đề: ${meeting.title}\n   - Cập nhật: ${
-                    meeting.modified
-                  }\n\n`;
+                  }\n   - Tiêu đề: ${meeting.title}\n`;
                 });
                 message += "\n💡 Bạn có thể hỏi về bất kỳ cuộc họp nào!";
                 appendMessage(message, "ai");
