@@ -637,10 +637,10 @@ def chatbot():
         chat_history = session.get("chat_history", [])
 
         # --- STEP 1: Classify question ---
-        now = datetime.now()  # Lấy thời gian hiện tại
-
+        now = datetime.now()
         year = now.year
         month = now.month
+        
         function_spec = {
             "name": "classify_question",
             "description": "Determine whether the question is about a date or a topic",
@@ -669,7 +669,6 @@ def chatbot():
         call = response.choices[0].message
         classification = {"type": "topic", "date": None}
 
-        # ✅ FIX: compatible with new OpenAI SDK
         if hasattr(call, "function_call") and call.function_call:
             args_str = call.function_call.arguments
             if isinstance(args_str, str):
@@ -683,44 +682,78 @@ def chatbot():
 
         # --- STEP 2: Search with ChromaDB ---
         date_filter = classification.get("date") if classification["type"] == "date" else None
-        search_results = search_meetings_chromadb(question, n_results=100, date_filter=date_filter)
+        search_results = search_meetings_chromadb(question, n_results=5, date_filter=date_filter)
 
-        # --- STEP 3: Build context ---
+        # --- STEP 3: Build enhanced context with full meeting details ---
         context = ""
+        meeting_details = []
+        
         if search_results:
-            context = "Relevant meeting information:\n\n"
+            context = "📋 Relevant meeting information found:\n\n"
             for idx, result in enumerate(search_results):
                 meta = result["metadata"]
-                print(result['summary'])
-                context += f"Index: {idx} • {meta['title']} ({meta['date']})\n  → {result['summary'][:400]}...\n\n"
+                summary = result['summary']
+                
+                # Store meeting details for reference
+                meeting_info = {
+                    "index": idx + 1,
+                    "title": meta['title'],
+                    "date": meta['date'],
+                    "filename": meta.get('filename', ''),
+                    "id": result['id'],
+                    "relevance": round((1 - result.get('distance', 0)) * 100, 1) if result.get('distance') is not None else 100
+                }
+                meeting_details.append(meeting_info)
+                
+                # Add full summary to context (not truncated)
+                context += f"[Meeting {idx + 1}]\n"
+                context += f"Title: {meta['title']}\n"
+                context += f"Date: {meta['date']}\n"
+                context += f"Relevance: {meeting_info['relevance']}%\n"
+                context += f"Content:\n{summary}\n"
+                context += f"{'-'*80}\n\n"
 
+        # --- STEP 4: Generate enhanced answer ---
+        system_prompt = f"""You are a helpful meeting assistant that provides detailed, accurate answers about meetings.
 
-        messages = [
-            {"role": "system", "content": f"""You are a meeting assistant that helps answer questions about meetings.
-            Use the following context to answer the user's question. If the context doesn't contain relevant information, say so.
-            
-            {context}"""}
-        ]
+When answering questions:
+1. Use the meeting information provided in the context
+2. If specific meetings are relevant, mention them by title and date
+3. Quote or reference specific details from the meetings when applicable
+4. If multiple meetings contain relevant information, summarize findings from each
+5. Always provide clear, well-structured answers in Vietnamese
+6. If the context doesn't contain the information needed, politely say so
+
+Available Context:
+{context if context else "No meeting data available yet."}
+"""
+
+        messages = [{"role": "system", "content": system_prompt}]
         messages.extend(chat_history[-10:])
         messages.append({"role": "user", "content": question})
 
-        # --- STEP 4: Generate answer ---
         answer_response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
-            temperature=0,
-            max_tokens=1000
+            temperature=0.3,
+            max_tokens=1500
         )
 
-        raw_answer = answer_response.choices[0].message.content or "I'm not sure how to answer that."
+        raw_answer = answer_response.choices[0].message.content or "Xin lỗi, tôi không chắc cách trả lời câu hỏi đó."
 
+        # --- STEP 5: Format response with meeting references ---
         formatted_answer = f"💬 **Câu trả lời:**\n{raw_answer.strip()}\n"
-        # if search_results:
-        #     formatted_answer += "\n\n📚 **Thông tin tham khảo:**\n"
-        #     for result in search_results:
-        #         meta = result["metadata"]
-        #         formatted_answer += f"- {meta['title']} ({meta['date']})\n"
+        
+        if meeting_details:
+            formatted_answer += f"\n\n📚 **Nguồn tham khảo ({len(meeting_details)} cuộc họp):**\n"
+            for meeting in meeting_details:
+                formatted_answer += f"\n{meeting['index']}. **{meeting['title']}**\n"
+                formatted_answer += f"   📅 Ngày: {meeting['date']}\n"
+                formatted_answer += f"   🎯 Độ liên quan: {meeting['relevance']}%\n"
+                if meeting['filename']:
+                    formatted_answer += f"   📄 File: {meeting['filename']}\n"
 
+        # --- STEP 6: Update chat history ---
         chat_history.append({"role": "user", "content": question})
         chat_history.append({"role": "assistant", "content": formatted_answer})
         session["chat_history"] = chat_history[-20:]
@@ -728,14 +761,14 @@ def chatbot():
         return jsonify({
             "answer": formatted_answer,
             "classification": classification,
-            "sources": [{"title": r["metadata"]["title"], "date": r["metadata"]["date"]} for r in search_results],
+            "meetings": meeting_details,
             "count": len(search_results)
         })
 
     except Exception as e:
         logger.error(f"Error in chatbot: {e}", exc_info=True)
         return jsonify({"error": "Failed to process question"}), 500
-
+    
 @app.route("/list_meetings", methods=["GET"])
 def list_meetings():
     """List all available meeting summaries from ChromaDB"""
