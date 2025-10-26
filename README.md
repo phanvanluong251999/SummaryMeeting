@@ -25,35 +25,79 @@ summary-meeting
 - Summarization of transcribed text using OpenAI's GPT-4 model.
 - User-friendly web interface for file uploads and displaying results.
 
-## Requirements
+## Quick Start
 
-To run this application, you need to install the following dependencies:
+### Automated Setup (Recommended)
 
-- Flask
-- PyPDF2
-- python-docx
-- pydub
-- transformers
-- OpenAI
-
-You can install the required packages using pip:
-
+**Windows:**
+```bash
+setup.bat
 ```
+
+**Linux/macOS:**
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+The setup script will:
+- Check Python and FFmpeg installation
+- Create a virtual environment
+- Install all dependencies
+- Create required directories
+
+### Manual Installation
+
+See [INSTALL.md](INSTALL.md) for detailed installation instructions.
+
+**Quick version:**
+```bash
+# 1. Install FFmpeg (required for audio processing)
+#    Windows: choco install ffmpeg
+#    macOS:   brew install ffmpeg
+#    Linux:   sudo apt install ffmpeg
+
+# 2. Install Python dependencies
 pip install -r requirements.txt
+
+# 3. Configure environment (optional)
+cp .env.example .env
+# Edit .env with your OpenAI API key
+
+# 4. Run the application
+python main.py
 ```
 
 ## Running the Application
 
-1. Clone the repository or download the project files.
-2. Navigate to the project directory.
-3. Install the required dependencies.
-4. Run the application:
+1. **Start the server:**
+   ```bash
+   python main.py
+   ```
 
-```
-python app/main.py
-```
+2. **Open your browser** and go to: `http://127.0.0.1:5000`
 
-5. Open your web browser and go to `http://127.0.0.1:5000` to access the application.
+3. **Upload files:**
+   - Audio files: MP3, WAV, M4A
+   - Text files: TXT, DOCX, PDF
+
+## ✨ Latest Updates
+
+### 🚀 AssemblyAI Integration (NEW!)
+- **Primary transcription provider**: Fast, accurate, supports speaker identification
+- **2-5 seconds** for typical meeting audio (vs 30-60s with local model)
+- **Free tier**: First 5 hours FREE!
+- **Multiple providers**: AssemblyAI → OpenAI Whisper → Local (automatic fallback)
+
+### 🎤 Speaker Identification
+- Enable with `ENABLE_SPEAKER_LABELS=true`
+- Automatically identifies who said what in meetings
+- Perfect for multi-person meetings
+
+### ⚡ Performance
+- **AssemblyAI**: 2-5 seconds for 30-second audio
+- **OpenAI Whisper**: 2-5 seconds (fallback option)
+- **Local model**: 30-60 seconds (free, offline option)
 
 ## Contributing
 

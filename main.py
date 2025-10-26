@@ -30,10 +30,20 @@ class Config:
     ALLOWED_TEXT_EXTENSIONS = {'.txt', '.docx', '.pdf'}
     ALLOWED_AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a'}
     SECRET_KEY = os.environ.get('SECRET_KEY', 'supersecretkey')
-    
+
     # API Configuration
     OPENAI_BASE_URL = os.environ.get('OPENAI_BASE_URL', 'https://aiportalapi.stu-platform.live/jpe')
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', 'sk-9CcbggVJxVgap1rjNkUvtQ')
+
+    # AssemblyAI Configuration
+    ASSEMBLYAI_API_KEY = os.environ.get('ASSEMBLYAI_API_KEY', '')
+
+    # Transcription Configuration
+    STT_PROVIDER = os.environ.get('STT_PROVIDER', 'assemblyai').lower()  # 'assemblyai', 'openai', or 'local'
+
+    # AssemblyAI Options
+    ENABLE_SPEAKER_LABELS = os.environ.get('ENABLE_SPEAKER_LABELS', 'false').lower() == 'true'
+    LANGUAGE_CODE = os.environ.get('LANGUAGE_CODE', 'en')  # Auto-detect if None
 
 # -------- LOGGING SETUP --------
 logging.basicConfig(
@@ -58,6 +68,20 @@ try:
 except Exception as e:
     logger.error(f"Failed to initialize OpenAI client: {e}")
     client = None
+
+# -------- ASSEMBLYAI CLIENT INITIALIZATION --------
+try:
+    import assemblyai as aai
+    if Config.ASSEMBLYAI_API_KEY:
+        aai.settings.api_key = Config.ASSEMBLYAI_API_KEY
+        logger.info("AssemblyAI client initialized successfully")
+        assemblyai_client = aai
+    else:
+        logger.warning("AssemblyAI API key not provided")
+        assemblyai_client = None
+except Exception as e:
+    logger.error(f"Failed to initialize AssemblyAI client: {e}")
+    assemblyai_client = None
 
 # -------- CHROMADB INITIALIZATION --------
 try:
@@ -283,11 +307,79 @@ def split_audio(file_path: str, chunk_length_ms: int = Config.CHUNK_LENGTH_MS) -
         logger.error(f"Error splitting audio: {e}")
         raise
 
-def transcribe_audio(file_path: str) -> str:
-    """Transcribe audio file using Whisper model"""
+def transcribe_audio_assemblyai(file_path: str) -> str:
+    """Transcribe audio file using AssemblyAI API"""
+    try:
+        if not assemblyai_client:
+            raise Exception("AssemblyAI client not initialized")
+
+        logger.info("🚀 Using AssemblyAI for transcription...")
+
+        # Configure transcription options
+        config = assemblyai_client.TranscriptionConfig(
+            speaker_labels=Config.ENABLE_SPEAKER_LABELS,
+            language_code=Config.LANGUAGE_CODE if Config.LANGUAGE_CODE else None
+        )
+
+        # Create transcriber
+        transcriber = assemblyai_client.Transcriber(config=config)
+
+        # Transcribe the audio file
+        logger.info(f"Uploading and transcribing: {file_path}")
+        transcript = transcriber.transcribe(file_path)
+
+        # Check if transcription was successful
+        if transcript.status == assemblyai_client.TranscriptStatus.error:
+            raise Exception(f"AssemblyAI transcription failed: {transcript.error}")
+
+        # Format output based on whether speaker labels are enabled
+        if Config.ENABLE_SPEAKER_LABELS and transcript.utterances:
+            logger.info("✅ Transcription with speaker labels completed")
+            # Format with speaker labels
+            formatted_text = []
+            for utterance in transcript.utterances:
+                speaker = f"Speaker {utterance.speaker}"
+                text = utterance.text
+                formatted_text.append(f"{speaker}: {text}")
+            result = "\n".join(formatted_text)
+        else:
+            logger.info("✅ Transcription completed")
+            result = transcript.text
+
+        logger.info(f"Transcription length: {len(result)} characters")
+        return result
+
+    except Exception as e:
+        logger.error(f"Error during AssemblyAI transcription: {e}")
+        raise
+
+def transcribe_audio_openai(file_path: str) -> str:
+    """Transcribe audio file using OpenAI Whisper API"""
+    try:
+        if not client:
+            raise Exception("OpenAI client not initialized")
+
+        logger.info("🚀 Using OpenAI Whisper API for transcription...")
+
+        with open(file_path, "rb") as audio_file:
+            response = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+                response_format="text"
+            )
+
+        logger.info(f"✅ Transcription completed via OpenAI API. Length: {len(response)} characters")
+        return response
+
+    except Exception as e:
+        logger.error(f"Error during OpenAI API transcription: {e}")
+        raise
+
+def transcribe_audio_local(file_path: str) -> str:
+    """Transcribe audio file using local Whisper model (fallback)"""
     chunks = []
     try:
-        logger.info("Loading Whisper model...")
+        logger.info("Loading local Whisper model...")
         pipe = pipeline(
             "automatic-speech-recognition",
             model=Config.MODEL_NAME
@@ -296,20 +388,71 @@ def transcribe_audio(file_path: str) -> str:
         chunks = split_audio(file_path)
         full_text = []
 
-        logger.info("Starting transcription...")
+        logger.info("Starting transcription with local model...")
         for i, chunk in enumerate(chunks):
             logger.info(f"Transcribing chunk {i + 1}/{len(chunks)}")
             result = pipe(chunk)
             text = result["text"].strip()
             full_text.append(text)
-        
+
         return " ".join(full_text)
-    
+
     except Exception as e:
-        logger.error(f"Error during transcription: {e}")
+        logger.error(f"Error during local transcription: {e}")
         raise
     finally:
         cleanup_temp_files(chunks, remove_dir=True)
+
+def transcribe_audio(file_path: str) -> str:
+    """Transcribe audio file using configured STT provider"""
+    provider = Config.STT_PROVIDER
+    logger.info(f"Selected STT provider: {provider}")
+
+    try:
+        # Primary: Try configured provider
+        if provider == 'assemblyai':
+            if assemblyai_client:
+                return transcribe_audio_assemblyai(file_path)
+            else:
+                logger.warning("⚠️ AssemblyAI not available, falling back to OpenAI...")
+                provider = 'openai'
+
+        if provider == 'openai':
+            if client:
+                return transcribe_audio_openai(file_path)
+            else:
+                logger.warning("⚠️ OpenAI not available, falling back to local model...")
+                provider = 'local'
+
+        if provider == 'local':
+            return transcribe_audio_local(file_path)
+
+        # If we get here, no provider is configured
+        raise Exception("No transcription provider available")
+
+    except Exception as e:
+        logger.error(f"Error during {provider} transcription: {e}")
+
+        # Automatic fallback chain: AssemblyAI → OpenAI → Local
+        if provider == 'assemblyai' and client:
+            logger.warning("⚠️ AssemblyAI failed, trying OpenAI...")
+            try:
+                return transcribe_audio_openai(file_path)
+            except Exception as openai_error:
+                logger.warning(f"⚠️ OpenAI also failed: {openai_error}, trying local model...")
+                return transcribe_audio_local(file_path)
+
+        elif provider == 'openai':
+            logger.warning("⚠️ OpenAI failed, trying local model...")
+            try:
+                return transcribe_audio_local(file_path)
+            except Exception as local_error:
+                logger.error(f"Local transcription also failed: {local_error}")
+                raise
+
+        else:
+            # Already using local or all failed
+            raise
 
 # -------- TEXT EXTRACTION --------
 def extract_text(file_path: str) -> Optional[str]:
