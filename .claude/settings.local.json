@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(python -m py_compile:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(pip install:*)",
+      "Bash(ffmpeg:*)",
+      "Bash(choco:*)",
+      "Bash(python:*)",
+      "Bash(E:SummaryMeetingvenvScriptspip.exe list)",
+      "Bash(./venv/Scripts/pip.exe list:*)",
+      "Bash(./venv/Scripts/pip.exe install:*)"
     ],
     "deny": [],
     "ask": []

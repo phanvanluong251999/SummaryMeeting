@@ -1246,6 +1246,119 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
         }
       });
 
+      // Helper function to check if file is audio
+      function isAudioFile(filename) {
+        const audioExtensions = ['.mp3', '.wav', '.m4a'];
+        return audioExtensions.some(ext => filename.toLowerCase().endsWith(ext));
+      }
+
+      // Helper function to stream progress updates
+      async function handleAudioFileWithProgress(file) {
+        const formData = new FormData();
+        formData.append("meeting_file", file);
+        formData.append("stream", "true");
+
+        // Upload and start processing
+        const response = await fetch("/load_file", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (!data.success || !data.task_id) {
+          throw new Error(data.error || "Failed to start processing");
+        }
+
+        const taskId = data.task_id;
+        let isComplete = false;
+
+        // Connect to progress stream
+        const eventSource = new EventSource(`/progress/${taskId}`);
+
+        return new Promise((resolve, reject) => {
+          eventSource.onmessage = (event) => {
+            try {
+              const update = JSON.parse(event.data);
+
+              if (update.error) {
+                eventSource.close();
+                reject(new Error(update.error));
+                return;
+              }
+
+              // Update loading message (without percentage)
+              if (update.message && !update.partial_text) {
+                // Only show loading overlay if we're not streaming text yet
+                showLoading(true, update.message);
+              }
+
+              // Display streaming text if available
+              if (update.partial_text) {
+                // Hide loading overlay to show streaming text!
+                showLoading(false);
+
+                console.log("📝 Streaming text update:", update.partial_text.length, "characters");
+
+                // Show text with typing indicator during streaming
+                if (!update.is_complete) {
+                  originalText.textContent = update.partial_text + " ▋";
+                } else {
+                  originalText.textContent = update.partial_text;
+                }
+
+                // Make sure it's visible
+                originalText.style.opacity = "1";
+                originalText.style.visibility = "visible";
+
+                // Auto scroll to bottom to show new text
+                originalText.scrollTop = originalText.scrollHeight;
+
+                console.log("✅ Text displayed:", originalText.textContent.substring(0, 50) + "...");
+              }
+
+              // Check if complete
+              if (update.is_complete) {
+                isComplete = true;
+                eventSource.close();
+
+                // Fetch the result
+                fetch(`/task_result/${taskId}`)
+                  .then(res => res.json())
+                  .then(result => {
+                    if (result.success) {
+                      resolve(result);
+                    } else {
+                      reject(new Error(result.error || "Processing failed"));
+                    }
+                  })
+                  .catch(reject);
+              } else if (update.message && update.message.includes("Lỗi")) {
+                // Error occurred
+                eventSource.close();
+                reject(new Error(update.message));
+              }
+            } catch (err) {
+              console.error("Error parsing progress update:", err);
+            }
+          };
+
+          eventSource.onerror = (error) => {
+            console.error("EventSource error:", error);
+            eventSource.close();
+            reject(new Error("Connection to progress stream failed"));
+          };
+
+          // Timeout after 5 minutes
+          setTimeout(() => {
+            if (!isComplete) {
+              eventSource.close();
+              reject(new Error("Processing timeout"));
+            }
+          }, 300000);
+        });
+      }
+
       // Upload button click handler
       uploadBtn.addEventListener("click", async (e) => {
         e.preventDefault();
@@ -1263,17 +1376,33 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
         isUploading = true;
         uploadBtn.disabled = true;
 
-        const formData = new FormData();
-        formData.append("meeting_file", fileInput.files[0]);
-        showLoading(true, "Đang tải lên file...");
+        const file = fileInput.files[0];
+        const isAudio = isAudioFile(file.name);
 
         try {
-          const response = await fetch("/load_file", {
-            method: "POST",
-            body: formData,
-          });
+          let data;
 
-          const data = await response.json();
+          if (isAudio) {
+            // Clear original text area to prepare for streaming
+            originalText.textContent = "Đang xử lý...";
+
+            // Use streaming for audio files
+            showLoading(true, "Đang tải lên file audio...");
+            data = await handleAudioFileWithProgress(file);
+          } else {
+            // Regular upload for text files
+            const formData = new FormData();
+            formData.append("meeting_file", file);
+            showLoading(true, "Đang tải lên file...");
+
+            const response = await fetch("/load_file", {
+              method: "POST",
+              body: formData,
+            });
+
+            data = await response.json();
+          }
+
           showLoading(false);
           isUploading = false;
           uploadBtn.disabled = false;

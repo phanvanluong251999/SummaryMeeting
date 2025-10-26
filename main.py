@@ -1,28 +1,27 @@
-from flask import Flask, request, jsonify, render_template, session
+from flask import Flask, request, jsonify, render_template, session, Response, stream_with_context
 import os
+from dotenv import load_dotenv
 from docx import Document
+
+# Load environment variables from .env file
+load_dotenv()
 from PyPDF2 import PdfReader
 import openai
 import json
-from transformers import pipeline
-from pydub import AudioSegment
 from datetime import datetime
 import re
 import logging
 from typing import Optional, List, Tuple, Dict
 from werkzeug.utils import secure_filename
-from functools import lru_cache
-import shutil
 import chromadb
-from chromadb.config import Settings
 from chromadb.utils import embedding_functions
+import time
+import threading
+import queue
 
 # -------- CONFIGURATION --------
 class Config:
     """Application configuration"""
-    MODEL_NAME = "openai/whisper-small"
-    CHUNK_LENGTH_MS = 30 * 1000  # 30 seconds
-    TEMP_DIR = "audio_chunks"
     UPLOAD_DIR = "uploads"
     OUTPUT_DIR = "outputs"
     CHROMA_DIR = "chroma_db"  # ChromaDB storage directory
@@ -31,19 +30,16 @@ class Config:
     ALLOWED_AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a'}
     SECRET_KEY = os.environ.get('SECRET_KEY', 'supersecretkey')
 
-    # API Configuration
+    # OpenAI Configuration (for summarization only, not transcription)
     OPENAI_BASE_URL = os.environ.get('OPENAI_BASE_URL', 'https://aiportalapi.stu-platform.live/jpe')
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', 'sk-9CcbggVJxVgap1rjNkUvtQ')
 
-    # AssemblyAI Configuration
+    # AssemblyAI Configuration (for audio transcription)
     ASSEMBLYAI_API_KEY = os.environ.get('ASSEMBLYAI_API_KEY', '')
 
-    # Transcription Configuration
-    STT_PROVIDER = os.environ.get('STT_PROVIDER', 'assemblyai').lower()  # 'assemblyai', 'openai', or 'local'
-
-    # AssemblyAI Options
+    # AssemblyAI Transcription Options
     ENABLE_SPEAKER_LABELS = os.environ.get('ENABLE_SPEAKER_LABELS', 'false').lower() == 'true'
-    LANGUAGE_CODE = os.environ.get('LANGUAGE_CODE', 'en')  # Auto-detect if None
+    LANGUAGE_CODE = os.environ.get('LANGUAGE_CODE', 'en')  # Language code or None for auto-detect
 
 # -------- LOGGING SETUP --------
 logging.basicConfig(
@@ -57,6 +53,34 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = Config.UPLOAD_DIR
 app.config['MAX_CONTENT_LENGTH'] = Config.MAX_FILE_SIZE
 app.secret_key = Config.SECRET_KEY
+
+# -------- PROGRESS TRACKING --------
+# Store progress updates for streaming to clients
+progress_queues = {}
+
+def create_progress_queue(task_id: str) -> queue.Queue:
+    """Create a new progress queue for a task"""
+    q = queue.Queue()
+    progress_queues[task_id] = q
+    return q
+
+def send_progress(task_id: str, message: str, partial_text: str = None, is_complete: bool = False):
+    """Send a progress update to the queue"""
+    if task_id in progress_queues:
+        update = {
+            "message": message,
+            "timestamp": datetime.now().isoformat(),
+            "is_complete": is_complete
+        }
+        if partial_text is not None:
+            update["partial_text"] = partial_text
+        progress_queues[task_id].put(update)
+        logger.info(f"[{task_id}] {message}")
+
+def cleanup_progress_queue(task_id: str):
+    """Clean up a progress queue"""
+    if task_id in progress_queues:
+        del progress_queues[task_id]
 
 # -------- OPENAI CLIENT INITIALIZATION --------
 try:
@@ -74,13 +98,14 @@ try:
     import assemblyai as aai
     if Config.ASSEMBLYAI_API_KEY:
         aai.settings.api_key = Config.ASSEMBLYAI_API_KEY
-        logger.info("AssemblyAI client initialized successfully")
+        logger.info("✅ AssemblyAI client initialized successfully")
+        logger.info(f"   API Key: {Config.ASSEMBLYAI_API_KEY[:10]}...")
         assemblyai_client = aai
     else:
-        logger.warning("AssemblyAI API key not provided")
+        logger.warning("⚠️ AssemblyAI API key not provided")
         assemblyai_client = None
 except Exception as e:
-    logger.error(f"Failed to initialize AssemblyAI client: {e}")
+    logger.error(f"❌ Failed to initialize AssemblyAI client: {e}")
     assemblyai_client = None
 
 # -------- CHROMADB INITIALIZATION --------
@@ -248,23 +273,9 @@ def get_all_meeting_dates_chromadb() -> List[str]:
 # -------- UTILITY FUNCTIONS --------
 def ensure_directories():
     """Ensure all required directories exist"""
-    for directory in [Config.UPLOAD_DIR, Config.OUTPUT_DIR, Config.TEMP_DIR, Config.CHROMA_DIR]:
+    for directory in [Config.UPLOAD_DIR, Config.OUTPUT_DIR, Config.CHROMA_DIR]:
         os.makedirs(directory, exist_ok=True)
 
-def cleanup_temp_files(file_list: List[str], remove_dir: bool = True):
-    """Clean up temporary files and optionally the directory"""
-    for file_path in file_list:
-        try:
-            if os.path.exists(file_path):
-                os.remove(file_path)
-        except Exception as e:
-            logger.warning(f"Failed to remove temp file {file_path}: {e}")
-    
-    if remove_dir and os.path.exists(Config.TEMP_DIR):
-        try:
-            shutil.rmtree(Config.TEMP_DIR)
-        except Exception as e:
-            logger.warning(f"Failed to remove temp directory: {e}")
 
 def validate_file_extension(filename: str, allowed_extensions: set) -> bool:
     """Validate file extension"""
@@ -283,37 +294,17 @@ def parse_date_from_text(text: str) -> str:
             return f"{parts[2]}-{parts[1].zfill(2)}-{parts[0].zfill(2)}"
     return datetime.now().strftime("%Y-%m-%d")
 
-# -------- AUDIO PROCESSING --------
-def split_audio(file_path: str, chunk_length_ms: int = Config.CHUNK_LENGTH_MS) -> List[str]:
-    """Split audio file into manageable chunks"""
-    try:
-        logger.info(f"Splitting audio file: {file_path}")
-        audio = AudioSegment.from_file(file_path)
-        duration_min = len(audio) / 60000
-        logger.info(f"Total duration: {duration_min:.2f} minutes")
-
-        os.makedirs(Config.TEMP_DIR, exist_ok=True)
-        chunks = []
-
-        for i in range(0, len(audio), chunk_length_ms):
-            chunk = audio[i:i + chunk_length_ms]
-            chunk_filename = os.path.join(Config.TEMP_DIR, f"chunk_{i//chunk_length_ms}.wav")
-            chunk.export(chunk_filename, format="wav")
-            chunks.append(chunk_filename)
-        
-        logger.info(f"Split into {len(chunks)} chunks")
-        return chunks
-    except Exception as e:
-        logger.error(f"Error splitting audio: {e}")
-        raise
-
-def transcribe_audio_assemblyai(file_path: str) -> str:
-    """Transcribe audio file using AssemblyAI API"""
+# -------- AUDIO TRANSCRIPTION --------
+def transcribe_audio_assemblyai(file_path: str, task_id: Optional[str] = None) -> str:
+    """Transcribe audio file using AssemblyAI API with real-time text streaming"""
+    start_time = time.time()
     try:
         if not assemblyai_client:
             raise Exception("AssemblyAI client not initialized")
 
         logger.info("🚀 Using AssemblyAI for transcription...")
+        if task_id:
+            send_progress(task_id, "Đang tải file âm thanh lên...")
 
         # Configure transcription options
         config = assemblyai_client.TranscriptionConfig(
@@ -324,9 +315,16 @@ def transcribe_audio_assemblyai(file_path: str) -> str:
         # Create transcriber
         transcriber = assemblyai_client.Transcriber(config=config)
 
-        # Transcribe the audio file
+        # Upload and transcribe
         logger.info(f"Uploading and transcribing: {file_path}")
+
+        if task_id:
+            send_progress(task_id, "Đang chuyển đổi giọng nói thành văn bản...")
+
         transcript = transcriber.transcribe(file_path)
+
+        if task_id:
+            send_progress(task_id, "Đã nhận kết quả, đang hiển thị...")
 
         # Check if transcription was successful
         if transcript.status == assemblyai_client.TranscriptStatus.error:
@@ -335,7 +333,6 @@ def transcribe_audio_assemblyai(file_path: str) -> str:
         # Format output based on whether speaker labels are enabled
         if Config.ENABLE_SPEAKER_LABELS and transcript.utterances:
             logger.info("✅ Transcription with speaker labels completed")
-            # Format with speaker labels
             formatted_text = []
             for utterance in transcript.utterances:
                 speaker = f"Speaker {utterance.speaker}"
@@ -346,113 +343,65 @@ def transcribe_audio_assemblyai(file_path: str) -> str:
             logger.info("✅ Transcription completed")
             result = transcript.text
 
-        logger.info(f"Transcription length: {len(result)} characters")
+        elapsed_time = time.time() - start_time
+        logger.info(f"✅ Transcription completed in {elapsed_time:.2f} seconds")
+        logger.info(f"   Length: {len(result)} characters")
+
+        # Stream the text word-by-word for real-time effect
+        if task_id and result:
+            # Split text into individual words
+            words = result.split()
+            total_words = len(words)
+
+            # Stream word by word with FIXED speed
+            accumulated_text = ""
+
+            for i, word in enumerate(words):
+                accumulated_text += (" " if accumulated_text else "") + word
+
+                # Show progress every word for visibility
+                current_word = i + 1
+                send_progress(
+                    task_id,
+                    f"Đang hiển thị... ({current_word}/{total_words} từ)",
+                    partial_text=accumulated_text
+                )
+
+                # FIXED delay - same speed for all text lengths
+                time.sleep(0.05)  # 50ms per word - consistent and visible
+
+            # Send final complete text with completion message
+            send_progress(
+                task_id,
+                f"Hoàn thành! ({elapsed_time:.1f}s)",
+                partial_text=result,
+                is_complete=True
+            )
+        elif task_id:
+            send_progress(task_id, f"Hoàn thành! ({elapsed_time:.1f}s)", is_complete=True)
+
         return result
 
     except Exception as e:
-        logger.error(f"Error during AssemblyAI transcription: {e}")
+        elapsed_time = time.time() - start_time
+        logger.error(f"❌ Error during AssemblyAI transcription after {elapsed_time:.2f}s: {e}")
+        if task_id:
+            send_progress(task_id, f"Lỗi: {str(e)}")
         raise
 
-def transcribe_audio_openai(file_path: str) -> str:
-    """Transcribe audio file using OpenAI Whisper API"""
-    try:
-        if not client:
-            raise Exception("OpenAI client not initialized")
+def transcribe_audio(file_path: str, task_id: Optional[str] = None) -> str:
+    """Transcribe audio file using AssemblyAI"""
+    logger.info("="*80)
+    logger.info(f"🎤 TRANSCRIPTION STARTED")
+    logger.info(f"   File: {os.path.basename(file_path)}")
+    logger.info(f"   Provider: AssemblyAI")
+    logger.info(f"   AssemblyAI Available: {assemblyai_client is not None}")
+    logger.info("="*80)
 
-        logger.info("🚀 Using OpenAI Whisper API for transcription...")
+    if not assemblyai_client:
+        raise Exception("AssemblyAI client not initialized. Please check your ASSEMBLYAI_API_KEY in .env file")
 
-        with open(file_path, "rb") as audio_file:
-            response = client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-                response_format="text"
-            )
-
-        logger.info(f"✅ Transcription completed via OpenAI API. Length: {len(response)} characters")
-        return response
-
-    except Exception as e:
-        logger.error(f"Error during OpenAI API transcription: {e}")
-        raise
-
-def transcribe_audio_local(file_path: str) -> str:
-    """Transcribe audio file using local Whisper model (fallback)"""
-    chunks = []
-    try:
-        logger.info("Loading local Whisper model...")
-        pipe = pipeline(
-            "automatic-speech-recognition",
-            model=Config.MODEL_NAME
-        )
-
-        chunks = split_audio(file_path)
-        full_text = []
-
-        logger.info("Starting transcription with local model...")
-        for i, chunk in enumerate(chunks):
-            logger.info(f"Transcribing chunk {i + 1}/{len(chunks)}")
-            result = pipe(chunk)
-            text = result["text"].strip()
-            full_text.append(text)
-
-        return " ".join(full_text)
-
-    except Exception as e:
-        logger.error(f"Error during local transcription: {e}")
-        raise
-    finally:
-        cleanup_temp_files(chunks, remove_dir=True)
-
-def transcribe_audio(file_path: str) -> str:
-    """Transcribe audio file using configured STT provider"""
-    provider = Config.STT_PROVIDER
-    logger.info(f"Selected STT provider: {provider}")
-
-    try:
-        # Primary: Try configured provider
-        if provider == 'assemblyai':
-            if assemblyai_client:
-                return transcribe_audio_assemblyai(file_path)
-            else:
-                logger.warning("⚠️ AssemblyAI not available, falling back to OpenAI...")
-                provider = 'openai'
-
-        if provider == 'openai':
-            if client:
-                return transcribe_audio_openai(file_path)
-            else:
-                logger.warning("⚠️ OpenAI not available, falling back to local model...")
-                provider = 'local'
-
-        if provider == 'local':
-            return transcribe_audio_local(file_path)
-
-        # If we get here, no provider is configured
-        raise Exception("No transcription provider available")
-
-    except Exception as e:
-        logger.error(f"Error during {provider} transcription: {e}")
-
-        # Automatic fallback chain: AssemblyAI → OpenAI → Local
-        if provider == 'assemblyai' and client:
-            logger.warning("⚠️ AssemblyAI failed, trying OpenAI...")
-            try:
-                return transcribe_audio_openai(file_path)
-            except Exception as openai_error:
-                logger.warning(f"⚠️ OpenAI also failed: {openai_error}, trying local model...")
-                return transcribe_audio_local(file_path)
-
-        elif provider == 'openai':
-            logger.warning("⚠️ OpenAI failed, trying local model...")
-            try:
-                return transcribe_audio_local(file_path)
-            except Exception as local_error:
-                logger.error(f"Local transcription also failed: {local_error}")
-                raise
-
-        else:
-            # Already using local or all failed
-            raise
+    return transcribe_audio_assemblyai(file_path, task_id)
 
 # -------- TEXT EXTRACTION --------
 def extract_text(file_path: str) -> Optional[str]:
@@ -491,17 +440,56 @@ def index():
     """Render main page"""
     return render_template("index.html")
 
+@app.route("/progress/<task_id>")
+def progress_stream(task_id):
+    """Server-Sent Events endpoint for streaming progress updates"""
+    def generate():
+        if task_id not in progress_queues:
+            yield f"data: {json.dumps({'error': 'Task not found'})}\n\n"
+            return
+
+        q = progress_queues[task_id]
+        while True:
+            try:
+                # Wait for progress update with timeout
+                update = q.get(timeout=30)
+                yield f"data: {json.dumps(update)}\n\n"
+
+                # If task is complete, close stream
+                if update.get('is_complete', False):
+                    break
+            except queue.Empty:
+                # Send keep-alive
+                yield f": keepalive\n\n"
+            except Exception as e:
+                logger.error(f"Error in progress stream: {e}")
+                break
+
+        # Clean up
+        cleanup_progress_queue(task_id)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+
 @app.route("/load_file", methods=["POST"])
 def load_file():
-    """Handle file upload and processing"""
+    """Handle file upload and processing with streaming progress"""
     try:
         file = request.files.get("meeting_file")
+        use_streaming = request.form.get("stream") == "true"
+
         if not file or file.filename == '':
             return jsonify({"error": "No file uploaded"}), 400
 
         filename = secure_filename(file.filename)
         ext = os.path.splitext(filename)[1].lower()
-        
+
         all_extensions = Config.ALLOWED_TEXT_EXTENSIONS | Config.ALLOWED_AUDIO_EXTENSIONS
         if not validate_file_extension(filename, all_extensions):
             return jsonify({"error": "Unsupported file format"}), 400
@@ -509,40 +497,98 @@ def load_file():
         ensure_directories()
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
-        
-        logger.info(f"File uploaded: {filename}")
 
-        text = None
+        logger.info(f"File uploaded: {filename} (streaming: {use_streaming})")
+
+        # For text files, process immediately
         if ext in Config.ALLOWED_TEXT_EXTENSIONS:
             logger.info(f"Processing text file: {filename}")
             text = extract_text(file_path)
             if not text:
                 return jsonify({"error": "Unable to extract text from file"}), 400
-        
+
+            return jsonify({
+                "success": True,
+                "filename": filename,
+                "text": text,
+                "length": len(text)
+            })
+
+        # For audio files with streaming
         elif ext in Config.ALLOWED_AUDIO_EXTENSIONS:
-            logger.info(f"Processing audio file: {filename}")
-            try:
-                text = transcribe_audio(file_path)
-                if not text:
-                    return jsonify({"error": "Unable to transcribe audio"}), 400
-            except Exception as e:
-                logger.error(f"Audio transcription error: {e}")
-                return jsonify({"error": f"Audio transcription failed: {str(e)}"}), 500
-        
+            if use_streaming:
+                # Create task ID and start background processing
+                task_id = f"{int(time.time())}_{filename}"
+                create_progress_queue(task_id)
+
+                def process_audio():
+                    try:
+                        send_progress(task_id, "Starting audio transcription...", 1)
+                        text = transcribe_audio(file_path, task_id)
+
+                        # Store result for retrieval
+                        task_results[task_id] = {
+                            "success": True,
+                            "filename": filename,
+                            "text": text,
+                            "length": len(text)
+                        }
+                    except Exception as e:
+                        logger.error(f"Background transcription error: {e}")
+                        task_results[task_id] = {
+                            "success": False,
+                            "error": str(e)
+                        }
+                        send_progress(task_id, f"Error: {str(e)}", 0)
+
+                thread = threading.Thread(target=process_audio)
+                thread.daemon = True
+                thread.start()
+
+                return jsonify({
+                    "success": True,
+                    "task_id": task_id,
+                    "streaming": True,
+                    "message": "Processing started. Use /progress/{task_id} to track progress."
+                })
+            else:
+                # Process synchronously (old behavior)
+                logger.info(f"Processing audio file: {filename}")
+                try:
+                    text = transcribe_audio(file_path)
+                    if not text:
+                        return jsonify({"error": "Unable to transcribe audio"}), 400
+
+                    return jsonify({
+                        "success": True,
+                        "filename": filename,
+                        "text": text,
+                        "length": len(text)
+                    })
+                except Exception as e:
+                    logger.error(f"Audio transcription error: {e}")
+                    return jsonify({"error": f"Audio transcription failed: {str(e)}"}), 500
+
         else:
             return jsonify({"error": "File format not supported"}), 400
 
-        logger.info(f"File processed successfully. Text length: {len(text)} characters")
-        return jsonify({
-            "success": True,
-            "filename": filename,
-            "text": text,
-            "length": len(text)
-        })
-    
     except Exception as e:
         logger.error(f"Error in load_file: {e}", exc_info=True)
         return jsonify({"error": f"Failed to process file: {str(e)}"}), 500
+
+# Global storage for background task results
+task_results = {}
+
+@app.route("/task_result/<task_id>", methods=["GET"])
+def get_task_result(task_id):
+    """Get the result of a background task"""
+    if task_id in task_results:
+        result = task_results[task_id]
+        # Clean up after retrieval
+        del task_results[task_id]
+        return jsonify(result)
+    else:
+        return jsonify({"error": "Task not found or still processing"}), 404
 
 def generate_meeting_title(text: str, max_length: int = 50) -> str:
     """Generate a descriptive title for the meeting using AI"""

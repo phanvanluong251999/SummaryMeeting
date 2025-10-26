@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Flask-based meeting transcription and summarization application that:
 - Accepts audio files (MP3, WAV, M4A) or text documents (TXT, DOCX, PDF)
-- Transcribes audio using OpenAI's Whisper model
-- Generates meeting summaries using GPT-4o-mini
+- Transcribes audio using AssemblyAI API with real-time progress streaming
+- Generates meeting summaries using GPT-4o-mini (OpenAI)
 - Stores summaries in ChromaDB for semantic search
 - Provides an AI chatbot interface for querying past meetings
 
@@ -24,20 +24,22 @@ This is a Flask-based meeting transcription and summarization application that:
 
 1. **File Processing Pipeline**
    - Text extraction: TXT, DOCX, PDF → raw text
-   - Audio processing: MP3/WAV/M4A → transcription via API or local model
-   - Audio chunking uses 30-second segments for local model only
+   - Audio processing: MP3/WAV/M4A → transcription via AssemblyAI API
+   - Real-time progress streaming for audio transcription
 
 2. **AI Integration**
-   - **Speech-to-Text Providers** (main.py:310-455):
-     - AssemblyAI API (primary, main.py:310-354): Fast, supports speaker labels
-     - OpenAI Whisper API (fallback, main.py:356-376): Fast, reliable
-     - Local Whisper model (final fallback, main.py:378-404): Free but slow
-   - **Automatic Fallback Chain**: AssemblyAI → OpenAI → Local
-   - **OpenAI for Summarization**: GPT-4o-mini for meeting summaries and chatbot
-   - Three main AI operations:
-     - Audio transcription (main.py:406-455): Multi-provider with fallback
-     - Summary generation: Creates structured meeting summaries
+   - **AssemblyAI** (main.py:320-409): Audio-to-text transcription
+     - Fast processing (typically 2-5 seconds for short audio)
+     - Optional speaker labels (identifies who said what)
+     - Language auto-detection or manual specification
+     - Real-time progress updates via Server-Sent Events (SSE)
+   - **OpenAI GPT-4o-mini** (used for summarization and chatbot ONLY):
+     - Meeting summary generation: Creates structured summaries
      - Chatbot: RAG-based Q&A using ChromaDB semantic search
+   - Main AI operations:
+     - Audio transcription: AssemblyAI API (main.py:320-409)
+     - Summary generation: OpenAI GPT-4o-mini
+     - Chatbot Q&A: OpenAI GPT-4o-mini with ChromaDB context
 
 3. **ChromaDB Vector Store** (main.py:62-223)
    - Persistent storage in `chroma_db/` directory
@@ -68,17 +70,20 @@ This is a Flask-based meeting transcription and summarization application that:
    - GPT-4o-mini generates answer using retrieved context
    - Returns answer with meeting references
 
-### Important Configuration (main.py:20-46)
+### Important Configuration (main.py:27-47)
 
-- `STT_PROVIDER`: Speech-to-text provider ('assemblyai', 'openai', or 'local')
-- `ASSEMBLYAI_API_KEY`: AssemblyAI API key for transcription
-- `ENABLE_SPEAKER_LABELS`: Enable/disable speaker identification (AssemblyAI only)
-- `LANGUAGE_CODE`: Language for transcription (e.g., 'en', 'vi')
-- `MODEL_NAME`: "openai/whisper-small" for local transcription fallback
-- `CHUNK_LENGTH_MS`: 30 seconds for audio splitting (local model only)
-- Directories: `uploads/`, `outputs/`, `audio_chunks/`, `chroma_db/`
-- Max file size: 100MB
-- API keys in environment variables: `ASSEMBLYAI_API_KEY`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`
+- **API Keys** (in .env file):
+  - `ASSEMBLYAI_API_KEY`: AssemblyAI API key for audio transcription
+  - `OPENAI_API_KEY`: OpenAI API key for summarization and chatbot
+  - `OPENAI_BASE_URL`: Custom OpenAI endpoint URL
+- **AssemblyAI Options**:
+  - `ENABLE_SPEAKER_LABELS`: Enable/disable speaker identification (default: false)
+  - `LANGUAGE_CODE`: Language for transcription (e.g., 'en', 'vi', or empty for auto-detect)
+- **Directories**: `uploads/`, `outputs/`, `chroma_db/`
+- **Max file size**: 100MB
+- **Supported formats**:
+  - Audio: .mp3, .wav, .m4a
+  - Text: .txt, .docx, .pdf
 
 ## Development Commands
 
@@ -108,49 +113,34 @@ pip install -r requirements.txt
 ```
 
 This installs all required packages:
-- flask, openai, assemblyai (APIs)
-- transformers, torch (AI models)
-- pydub (audio processing)
+- flask, python-dotenv (web framework)
+- openai, assemblyai (AI APIs)
 - PyPDF2, python-docx (document processing)
 - chromadb (vector database)
 
 ### Testing Audio Transcription
 
-**Quick test with AssemblyAI (recommended):**
+**Setup AssemblyAI:**
 1. Get free API key from https://www.assemblyai.com/dashboard/signup (5 hours free)
-2. Set `ASSEMBLYAI_API_KEY` in environment or .env file
-3. Upload audio file - transcription completes in 2-5 seconds!
-
-**Alternative providers:**
-- Set `STT_PROVIDER=openai` to use OpenAI Whisper API
-- Set `STT_PROVIDER=local` to use free local model (slower, needs ~500MB model download)
+2. Set `ASSEMBLYAI_API_KEY` in .env file
+3. Upload audio file - transcription completes in 2-5 seconds with real-time progress!
 
 ## File Processing Details
 
 ### Audio Processing
 
-**Provider Selection (main.py:406-455):**
-- Configurable provider: AssemblyAI (default) → OpenAI → Local
-- Automatic fallback if primary provider fails
-- Provider set via `STT_PROVIDER` environment variable
-
-**AssemblyAI Transcription (main.py:310-354):**
-- Uploads audio file directly (no chunking needed)
+**AssemblyAI Transcription (main.py:320-409):**
+- Uploads audio file directly to AssemblyAI (no chunking needed)
+- Real-time progress updates via Server-Sent Events (SSE)
 - Optional speaker labels: Identifies "who said what"
 - Language auto-detection or manual specification
-- Fast processing: 2-5 seconds for typical meeting audio
-
-**OpenAI Whisper API (main.py:356-376):**
-- Fast API-based transcription
-- Simple upload and transcribe
-- Good fallback option
-
-**Local Model (main.py:378-404):**
-- Uses `pydub` to split audio into 30-second chunks
-- Chunks stored temporarily in `audio_chunks/`
-- Each chunk transcribed separately, then concatenated
-- Cleanup removes temporary chunks after processing
-- Only used when APIs unavailable or STT_PROVIDER=local
+- Fast processing: typically 2-5 seconds for short meeting audio
+- Progress stages:
+  1. Khởi tạo phiên chuyển đổi... (5%)
+  2. Đang tải file lên AssemblyAI... (20%)
+  3. Đang xử lý âm thanh, vui lòng đợi... (40%)
+  4. Đang định dạng kết quả... (80%)
+  5. Hoàn thành! (100%)
 
 ### Text Extraction (main.py:314-343)
 
