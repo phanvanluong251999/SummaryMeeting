@@ -15,6 +15,13 @@ PyPDF2>=3.0.0               # For reading .pdf files
 # Vector Database for Semantic Search
 chromadb>=0.4.22            # For storing and searching meeting summaries
 
+# RAG Enhancements
+tiktoken>=0.5.1             # For token counting and context management
+rank-bm25>=0.2.2            # For BM25 keyword search (hybrid search)
+sentence-transformers>=2.2.2  # For cross-encoder re-ranking
+langchain>=0.1.0            # For document chunking with overlap
+langchain-text-splitters>=0.0.1  # Text splitting utilities
+
 # Additional Dependencies (usually auto-installed with above packages)
 werkzeug>=3.0.0
 requests>=2.31.0

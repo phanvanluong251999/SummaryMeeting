@@ -1,0 +1,27 @@
+Meeting Transcript: Kick-off Dự án App Quản Lý Nhiệm Vụ
+Date: 03/10/2025
+Time: 10:00 AM - 11:30 AM
+Location: Online via Zoom
+Participants: PM (Project Manager), Dev A (Developer A - Backend), Dev B (Developer B - Frontend), Designer, Tester
+
+PM: Chào mọi người, hôm nay chúng ta kick-off dự án app quản lý nhiệm vụ. Mục tiêu là xây dựng một app đơn giản với tính năng đăng nhập, danh sách nhiệm vụ, và thông báo. Timeline tổng thể: Hoàn thành backend cơ bản trong 2 tuần đầu. Ý kiến mọi người thế nào?
+
+Dev A: Tôi thấy ổn. Tôi sẽ chịu trách nhiệm API đăng nhập và database. Cần khoảng 1 tuần để setup.
+
+PM: Tốt, vậy Dev A, hạn chót cho API đăng nhập là 10/10 nhé. Dev B, bạn sẽ làm frontend, phụ thuộc vào backend của Dev A.
+
+Dev B: Vâng, tôi cần wireframe trước. Designer, bạn có thể cung cấp mockup UI cho màn hình chính không?
+
+Designer: Được thôi, tôi sẽ vẽ mockup cơ bản cho đăng nhập và danh sách nhiệm vụ. Hạn chót 07/10.
+
+Tester: Tôi sẽ chuẩn bị test cases cho phần đăng nhập. Có cần test security không?
+
+PM: Có, ưu tiên security. Tester, hãy làm test cases sơ bộ và gửi cho Dev A trước khi test.
+
+Dev A: Đồng ý, tôi sẽ test nội bộ trước khi giao.
+
+PM: Timeline chi tiết tôi sẽ gửi cho mọi người trước 05/10. Có câu hỏi gì không?
+
+All: Không.
+
+PM: OK, họp kết thúc.

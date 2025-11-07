@@ -1,0 +1,25 @@
+Meeting Transcript: Review Tuần 1 Dự án App Quản Lý Nhiệm Vụ
+Date: 07/10/2025
+Time: 2:00 PM - 3:00 PM
+Location: Offline tại văn phòng
+Participants: PM, Dev A, Dev B, Designer, Tester
+
+PM: Chào team, hôm nay review tiến độ tuần 1. Designer, mockup UI thế nào?
+
+Designer: Tôi đã hoàn thành mockup cho màn hình chính và đăng nhập. Có một số thay đổi nhỏ dựa trên feedback ban đầu.
+
+Dev B: Mockup nhìn tốt. Tôi có thể bắt đầu code frontend dựa trên này. Nhưng cần API từ Dev A để tích hợp.
+
+Dev A: API đăng nhập gần xong, chỉ còn test nội bộ. Tôi sẽ hoàn thiện trước họp sau.
+
+Tester: Tôi đã test sơ bộ API, có lỗi nhỏ về validation input. Dev A, bạn sửa nhé?
+
+Dev A: OK, tôi sẽ fix và re-test.
+
+PM: Quyết định hôm nay: Tích hợp frontend với backend bắt đầu từ tuần này. Designer, chỉnh sửa mockup nếu cần, hạn chót 10/10.
+
+Dev B: Tôi sẽ phối hợp với Designer để đảm bảo UI khớp.
+
+Tester: Tôi sẽ test tích hợp sau khi Dev B code xong.
+
+PM: Theo dõi tiến độ và báo cáo cho tôi. Hẹn họp sau.

@@ -8,7 +8,1827 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
     />
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+      :root {
+        --primary: #4361ee;
+        --primary-light: #4895ef;
+        --primary-dark: #3f37c9;
+        --secondary: #4cc9f0;
+        --text-dark: #2b2d42;
+        --text-light: #8d99ae;
+        --background: #f8f9fa;
+        --white: #ffffff;
+        --success: #4caf50;
+        --danger: #f44336;
+        --warning: #ff9800;
+        --border-radius: 12px;
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.15);
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+      }
+
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: var(--text-dark);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .container {
+        background: var(--white);
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-lg);
+        max-width: 1200px;
+        width: 100%;
+        overflow: hidden;
+        position: relative;
+      }
+
+      /* ============ HEADER ============ */
+      header {
+        padding: 40px 30px;
+        text-align: center;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+        color: var(--white);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .logo i {
+        font-size: 3rem;
+        animation: float 3s ease-in-out infinite;
+      }
+
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+      }
+
+      h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 0;
+      }
+
+      .tagline {
+        font-size: 1rem;
+        opacity: 0.95;
+        margin-top: 5px;
+        font-weight: 300;
+      }
+
+      /* ============ UPLOAD AREA ============ */
+      .upload-container {
+        padding: 40px 30px;
+      }
+
+      .upload-area {
+        width: 100%;
+        border: 3px dashed var(--primary-light);
+        border-radius: var(--border-radius);
+        padding: 50px 20px;
+        text-align: center;
+        transition: var(--transition);
+        cursor: pointer;
+        background: linear-gradient(
+          135deg,
+          rgba(67, 97, 238, 0.03),
+          rgba(72, 149, 239, 0.03)
+        );
+        position: relative;
+      }
+
+      .upload-area:hover {
+        background: linear-gradient(
+          135deg,
+          rgba(67, 97, 238, 0.08),
+          rgba(72, 149, 239, 0.08)
+        );
+        border-color: var(--primary);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(67, 97, 238, 0.15);
+      }
+
+      .upload-area.highlight {
+        background: linear-gradient(
+          135deg,
+          rgba(67, 97, 238, 0.12),
+          rgba(72, 149, 239, 0.12)
+        );
+        border-color: var(--primary);
+        transform: scale(1.02);
+      }
+
+      .upload-area.has-file {
+        border-color: var(--success);
+        background: linear-gradient(
+          135deg,
+          rgba(76, 175, 80, 0.05),
+          rgba(76, 175, 80, 0.03)
+        );
+      }
+
+      .upload-area i {
+        font-size: 4rem;
+        color: var(--primary);
+        margin-bottom: 20px;
+        display: block;
+      }
+
+      .upload-area p {
+        margin-bottom: 20px;
+        color: var(--text-dark);
+        font-size: 1.1rem;
+      }
+
+      .file-info {
+        font-size: 0.85rem;
+        color: var(--text-light);
+        margin-top: 20px;
+      }
+
+      .selected-file {
+        font-weight: 600;
+        color: var(--primary);
+        margin-top: 15px;
+        padding: 12px 20px;
+        background: rgba(67, 97, 238, 0.1);
+        border-radius: 8px;
+        display: none;
+        align-items: center;
+        gap: 10px;
+        word-break: break-all;
+        animation: fadeIn 0.3s ease-out;
+      }
+
+      .upload-status {
+        display: none;
+        align-items: center;
+        gap: 12px;
+        margin-top: 20px;
+        padding: 16px 24px;
+        background: linear-gradient(
+          135deg,
+          rgba(76, 175, 80, 0.1),
+          rgba(76, 175, 80, 0.05)
+        );
+        border: 2px solid var(--success);
+        border-radius: 8px;
+        color: var(--success);
+        font-weight: 600;
+        animation: slideIn 0.5s ease-out;
+      }
+
+      input[type="file"] {
+        display: none;
+      }
+
+      .custom-file-upload {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 28px;
+        background: var(--white);
+        color: var(--primary);
+        border: 2px solid var(--primary);
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: var(--transition);
+        font-size: 1rem;
+        z-index: 2;
+        position: relative;
+      }
+
+      .custom-file-upload:hover {
+        background: var(--primary);
+        color: var(--white);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+      }
+
+      .action-button {
+        padding: 14px 32px;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+        color: var(--white);
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 20px;
+        position: relative;
+      }
+
+      .action-button.hidden {
+        display: none;
+      }
+
+      .action-button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(67, 97, 238, 0.3);
+      }
+
+      .action-button:disabled {
+        background: linear-gradient(135deg, #ccc, #aaa);
+        cursor: not-allowed;
+        opacity: 0.6;
+        transform: none !important;
+      }
+
+      /* ============ CONTENT AREA ============ */
+      .content-container {
+        padding: 0 30px 40px;
+        display: grid;
+        gap: 25px;
+      }
+
+      .content-box {
+        border: 1px solid #e8e8e8;
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        background: var(--white);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        transition: var(--transition);
+      }
+
+      .content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 25px;
+        background: linear-gradient(135deg, #f8f9fa, #ffffff);
+        border-bottom: 1px solid #e8e8e8;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .content-header h2 {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .content-header h2 i {
+        color: var(--primary);
+      }
+
+      .header-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .action-button.secondary {
+        background: linear-gradient(135deg, #6c757d, #5a6268);
+        padding: 10px 20px;
+        font-size: 0.9rem;
+        display: none;
+      }
+
+      .action-button.secondary.show {
+        display: inline-flex;
+      }
+
+      .action-button.success {
+        background: linear-gradient(135deg, #28a745, #218838);
+        padding: 10px 20px;
+        font-size: 0.9rem;
+        display: none;
+      }
+
+      .action-button.success.show {
+        display: inline-flex;
+      }
+
+      .content-body {
+        padding: 25px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .content-pre {
+        white-space: pre-wrap;
+        font-family: "Inter", sans-serif;
+        line-height: 1.8;
+        color: var(--text-dark);
+        font-size: 0.95rem;
+      }
+
+      /* ============ SUMMARY EDITOR ============ */
+      .summary-display {
+        display: block;
+      }
+
+      .summary-editor {
+        display: none;
+        animation: fadeIn 0.3s ease-out;
+      }
+
+      .editor-field {
+        margin-bottom: 20px;
+      }
+
+      .editor-field label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+      }
+
+      .form-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e8e8e8;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-family: "Inter", sans-serif;
+        transition: var(--transition);
+        background: #f8f9fa;
+      }
+
+      .form-textarea {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e8e8e8;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-family: "Inter", sans-serif;
+        transition: var(--transition);
+        background: #f8f9fa;
+        resize: vertical;
+        min-height: 200px;
+        line-height: 1.6;
+      }
+
+      .editor-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e8e8e8;
+      }
+
+      /* ============ LOADING OVERLAY ============ */
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.95);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        backdrop-filter: blur(5px);
+      }
+
+      .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 6px solid rgba(67, 97, 238, 0.2);
+        border-radius: 50%;
+        border-top-color: var(--primary);
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .loading-overlay p {
+        font-size: 1.1rem;
+        color: var(--text-dark);
+        font-weight: 500;
+      }
+
+      /* ============ TOAST NOTIFICATION ============ */
+      .toast {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        padding: 16px 28px;
+        border-radius: 12px;
+        color: var(--white);
+        font-weight: 500;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        max-width: 400px;
+      }
+
+      .toast.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
+
+      .toast.success {
+        background: linear-gradient(135deg, #4caf50, #45a049);
+      }
+
+      .toast.error {
+        background: linear-gradient(135deg, #f44336, #e53935);
+      }
+
+      .toast.info {
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+      }
+
+      /* ============ ANIMATIONS ============ */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ============ FLOATING BUTTONS ============ */
+      .floating-buttons {
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-end;
+      }
+
+      .chat-bubble {
+        /* Moved inside floating-buttons container */
+      }
+
+      .chat-btn {
+        width: 65px;
+        height: 65px;
+        border-radius: 50%;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+        border: none;
+        color: var(--white);
+        font-size: 1.8rem;
+        cursor: pointer;
+        box-shadow: 0 8px 25px rgba(67, 97, 238, 0.4);
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+
+      .chat-btn:hover {
+        transform: scale(1.1) translateY(-3px);
+        box-shadow: 0 12px 35px rgba(67, 97, 238, 0.5);
+      }
+
+      .chat-btn.active {
+        background: linear-gradient(135deg, var(--danger), #ff6b6b);
+      }
+
+      .chat-btn.pulse {
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          box-shadow: 0 8px 25px rgba(67, 97, 238, 0.4);
+        }
+        50% {
+          box-shadow: 0 8px 35px rgba(67, 97, 238, 0.7),
+            0 0 0 15px rgba(67, 97, 238, 0.1);
+        }
+      }
+
+      .chat-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: var(--danger);
+        color: var(--white);
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 700;
+        border: 3px solid var(--white);
+        animation: bounce 0.5s ease-in-out;
+      }
+
+      @keyframes bounce {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.2);
+        }
+      }
+
+      /* ============ LIBRARY BUTTON ============ */
+      .library-btn {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border: none;
+        color: var(--white);
+        font-size: 1.6rem;
+        cursor: pointer;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+
+      .library-btn:hover {
+        transform: scale(1.1) translateY(-3px);
+        box-shadow: 0 12px 35px rgba(102, 126, 234, 0.5);
+      }
+
+      .library-btn.active {
+        background: linear-gradient(135deg, var(--danger), #ff6b6b);
+      }
+
+      .library-count {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: var(--white);
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 700;
+        border: 3px solid var(--white);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+
+      /* ============ LIBRARY SIDEBAR ============ */
+      .library-sidebar {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 450px;
+        height: 100vh;
+        background: var(--white);
+        box-shadow: -10px 0 40px rgba(0, 0, 0, 0.2);
+        transform: translateX(100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .library-sidebar.open {
+        transform: translateX(0);
+      }
+
+      .library-header {
+        padding: 28px 24px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: var(--white);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      }
+
+      .library-header-content h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0 0 6px 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .library-header-content p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 0.9rem;
+      }
+
+      .library-close-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: var(--white);
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+      }
+
+      .library-close-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(90deg);
+      }
+
+      /* Library Search Bar */
+      .library-search {
+        padding: 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e8e8e8;
+      }
+
+      .search-input-wrapper {
+        position: relative;
+      }
+
+      .search-input-wrapper i {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-light);
+        font-size: 1rem;
+      }
+
+      .library-search-input {
+        width: 100%;
+        padding: 14px 16px 14px 48px;
+        border: 2px solid #e8e8e8;
+        border-radius: 25px;
+        font-size: 0.95rem;
+        outline: none;
+        transition: var(--transition);
+        background: var(--white);
+      }
+
+      .library-search-input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.1);
+      }
+
+      /* Library Filters */
+      .library-filters {
+        padding: 12px 20px;
+        background: var(--white);
+        border-bottom: 1px solid #e8e8e8;
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      .library-filters::-webkit-scrollbar {
+        display: none;
+      }
+
+      .filter-chip {
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: 2px solid #e8e8e8;
+        background: var(--white);
+        color: var(--text-dark);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .filter-chip:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+      }
+
+      .filter-chip.active {
+        background: linear-gradient(135deg, var(--primary), var(--primary-light));
+        border-color: var(--primary);
+        color: var(--white);
+      }
+
+      /* Library Content */
+      .library-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        background: #f8f9fa;
+      }
+
+      .library-content::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .library-content::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+
+      .library-content::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 10px;
+      }
+
+      /* Meeting Library Cards */
+      .library-meeting-card {
+        background: var(--white);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        transition: var(--transition);
+        border: 2px solid transparent;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .library-meeting-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary), var(--primary-light));
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+      }
+
+      .library-meeting-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        border-color: var(--primary);
+      }
+
+      .library-meeting-card:hover::before {
+        transform: scaleX(1);
+      }
+
+      .library-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+      }
+
+      .library-card-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin: 0 0 8px 0;
+        line-height: 1.4;
+        flex: 1;
+      }
+
+      .library-card-date {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--text-light);
+        font-size: 0.85rem;
+        margin-bottom: 12px;
+      }
+
+      .library-card-date i {
+        color: var(--primary);
+      }
+
+      .library-card-preview {
+        color: var(--text-light);
+        font-size: 0.9rem;
+        line-height: 1.6;
+        margin-bottom: 16px;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .library-card-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 16px;
+      }
+
+      .library-tag {
+        padding: 4px 10px;
+        border-radius: 12px;
+        background: rgba(67, 97, 238, 0.1);
+        color: var(--primary);
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .library-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 16px;
+        border-top: 1px solid #f0f0f0;
+      }
+
+      .library-card-meta {
+        display: flex;
+        gap: 16px;
+        font-size: 0.8rem;
+        color: var(--text-light);
+      }
+
+      .library-card-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .library-card-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .library-action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: none;
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.95rem;
+      }
+
+      .library-action-btn.view {
+        background: rgba(67, 97, 238, 0.1);
+        color: var(--primary);
+      }
+
+      .library-action-btn.view:hover {
+        background: var(--primary);
+        color: var(--white);
+        transform: scale(1.1);
+      }
+
+      .library-action-btn.delete {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--danger);
+      }
+
+      .library-action-btn.delete:hover {
+        background: var(--danger);
+        color: var(--white);
+        transform: scale(1.1);
+      }
+
+      /* Empty State */
+      .library-empty {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-light);
+      }
+
+      .library-empty i {
+        font-size: 5rem;
+        color: #e0e0e0;
+        margin-bottom: 20px;
+        display: block;
+      }
+
+      .library-empty h3 {
+        font-size: 1.3rem;
+        color: var(--text-dark);
+        margin: 0 0 8px 0;
+      }
+
+      .library-empty p {
+        margin: 0 0 24px 0;
+        font-size: 0.95rem;
+      }
+
+      /* Loading Skeleton */
+      .library-skeleton {
+        background: var(--white);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 16px;
+      }
+
+      .skeleton-line {
+        height: 14px;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: loading 1.5s ease-in-out infinite;
+        border-radius: 4px;
+        margin-bottom: 12px;
+      }
+
+      .skeleton-line.title {
+        width: 70%;
+        height: 20px;
+      }
+
+      .skeleton-line.date {
+        width: 40%;
+        height: 12px;
+      }
+
+      .skeleton-line.text {
+        width: 100%;
+      }
+
+      @keyframes loading {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
+      }
+
+      /* ============ CHAT PANEL ============ */
+      .chat-panel {
+        position: fixed;
+        bottom: 100px;
+        right: 25px;
+        width: 400px;
+        height: 600px;
+        background: var(--white);
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        display: flex;
+        flex-direction: column;
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+        pointer-events: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .chat-panel.open {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: all;
+      }
+
+      .chat-header {
+        padding: 20px;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+        color: var(--white);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 16px 16px 0 0;
+      }
+
+      .chat-header-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .chat-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        backdrop-filter: blur(10px);
+      }
+
+      .chat-header h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0;
+      }
+
+      .chat-status {
+        font-size: 0.8rem;
+        opacity: 0.9;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #4caf50;
+        animation: blink 2s infinite;
+      }
+
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .chat-close-btn {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: var(--white);
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+      }
+
+      .chat-close-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(90deg);
+      }
+
+      /* ============ CHAT MESSAGES ============ */
+      .chat-messages {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+        background: #f8f9fa;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .chat-messages::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .chat-messages::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .chat-messages::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 10px;
+      }
+
+      .chat-message {
+        display: flex;
+        gap: 10px;
+        animation: slideIn 0.3s ease-out;
+      }
+
+      .chat-message.user {
+        flex-direction: row-reverse;
+      }
+
+      .message-avatar {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--white);
+        font-size: 1.1rem;
+        flex-shrink: 0;
+      }
+
+      .message-bubble {
+        max-width: 75%;
+        padding: 12px 16px;
+        border-radius: 18px;
+        line-height: 1.5;
+        font-size: 0.95rem;
+      }
+
+      .chat-message.ai .message-bubble {
+        background: var(--white);
+        color: var(--text-dark);
+        border: 1px solid #e8e8e8;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border-radius: 18px 18px 18px 4px;
+      }
+
+      .chat-message.user .message-bubble {
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+        color: var(--white);
+        border-radius: 18px 18px 4px 18px;
+      }
+
+      .message-bubble p {
+        margin: 0;
+        margin-bottom: 8px;
+      }
+
+      .message-bubble p:last-child {
+        margin-bottom: 0;
+      }
+
+      /* ============ MEETING CARDS IN CHAT ============ */
+      .meeting-cards-container {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .meeting-card {
+        background: linear-gradient(135deg, #f8f9fa, #ffffff);
+        border: 2px solid #e8e8e8;
+        border-radius: 12px;
+        padding: 14px 16px;
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .meeting-card::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-light));
+        transition: width 0.3s ease;
+      }
+
+      .meeting-card:hover {
+        border-color: var(--primary);
+        transform: translateX(4px);
+        box-shadow: 0 4px 12px rgba(67, 97, 238, 0.15);
+      }
+
+      .meeting-card:hover::before {
+        width: 6px;
+      }
+
+      .meeting-card-icon {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-light));
+        color: var(--white);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+      }
+
+      .meeting-card-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .meeting-card-title {
+        font-weight: 600;
+        color: var(--text-dark);
+        margin: 0 0 4px 0;
+        font-size: 0.9rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .meeting-card-meta {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 0.8rem;
+        color: var(--text-light);
+      }
+
+      .meeting-card-date {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .meeting-card-relevance {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .relevance-badge {
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .relevance-high {
+        background: rgba(76, 175, 80, 0.15);
+        color: #2e7d32;
+      }
+
+      .relevance-medium {
+        background: rgba(255, 152, 0, 0.15);
+        color: #ef6c00;
+      }
+
+      .relevance-low {
+        background: rgba(158, 158, 158, 0.15);
+        color: #616161;
+      }
+
+      .meeting-card-arrow {
+        flex-shrink: 0;
+        color: var(--primary);
+        font-size: 1.1rem;
+        transition: transform 0.3s ease;
+      }
+
+      .meeting-card:hover .meeting-card-arrow {
+        transform: translateX(4px);
+      }
+
+      /* ============ MEETING DETAIL MODAL ============ */
+      .meeting-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        backdrop-filter: blur(4px);
+        padding: 20px;
+        animation: fadeIn 0.2s ease-out;
+      }
+
+      .meeting-modal.show {
+        display: flex;
+      }
+
+      .meeting-modal-content {
+        background: var(--white);
+        border-radius: 16px;
+        width: 100%;
+        max-width: 700px;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: slideIn 0.3s ease-out;
+      }
+
+      @keyframes slideInModal {
+        from {
+          opacity: 0;
+          transform: scale(0.95) translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+
+      .meeting-modal-header {
+        padding: 24px 28px;
+        border-bottom: 1px solid #e8e8e8;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        background: linear-gradient(135deg, #f8f9fa, #ffffff);
+        border-radius: 16px 16px 0 0;
+      }
+
+      .meeting-modal-header-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .meeting-modal-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin: 0 0 8px 0;
+        line-height: 1.4;
+      }
+
+      .meeting-modal-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        font-size: 0.9rem;
+        color: var(--text-light);
+      }
+
+      .meeting-modal-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .meeting-modal-meta-item i {
+        color: var(--primary);
+      }
+
+      .meeting-modal-close {
+        flex-shrink: 0;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.05);
+        border: none;
+        color: var(--text-dark);
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+      }
+
+      .meeting-modal-close:hover {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--danger);
+        transform: rotate(90deg);
+      }
+
+      .meeting-modal-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px 28px;
+        line-height: 1.8;
+      }
+
+      .meeting-modal-body::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .meeting-modal-body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+      }
+
+      .meeting-modal-body::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 10px;
+      }
+
+      .meeting-modal-body::-webkit-scrollbar-thumb:hover {
+        background: #a0aec0;
+      }
+
+      .meeting-modal-section {
+        margin-bottom: 24px;
+      }
+
+      .meeting-modal-section:last-child {
+        margin-bottom: 0;
+      }
+
+      .meeting-modal-section h4 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin: 0 0 12px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .meeting-modal-section h4 i {
+        color: var(--primary);
+      }
+
+      .meeting-modal-text {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        font-family: 'Inter', sans-serif;
+        color: var(--text-dark);
+        font-size: 0.95rem;
+        line-height: 1.8;
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .meeting-modal-footer {
+        padding: 16px 28px;
+        border-top: 1px solid #e8e8e8;
+        background: #f8f9fa;
+        border-radius: 0 0 16px 16px;
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+      }
+
+      .modal-btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+      }
+
+      .modal-btn-primary {
+        background: linear-gradient(135deg, var(--primary), var(--primary-light));
+        color: var(--white);
+      }
+
+      .modal-btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+      }
+
+      .modal-btn-secondary {
+        background: var(--white);
+        color: var(--text-dark);
+        border: 2px solid #e8e8e8;
+      }
+
+      .modal-btn-secondary:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+      }
+
+      .modal-btn-icon {
+        background: linear-gradient(135deg, #28a745, #218838);
+        color: var(--white);
+      }
+
+      .modal-btn-icon:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+      }
+
+      .modal-btn-warning {
+        background: linear-gradient(135deg, #ff9800, #f57c00);
+        color: var(--white);
+      }
+
+      .modal-btn-warning:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+      }
+
+      /* Quick action buttons */
+      .quick-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #e8e8e8;
+      }
+
+      .quick-action-btn {
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: 2px solid var(--primary-light);
+        background: var(--white);
+        color: var(--primary);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .quick-action-btn:hover {
+        background: var(--primary);
+        color: var(--white);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(67, 97, 238, 0.2);
+      }
+
+      /* Highlight search terms */
+      .search-highlight, mark.search-highlight {
+        background: linear-gradient(135deg, rgba(255, 235, 59, 0.8), rgba(255, 193, 7, 0.7)) !important;
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-weight: 700;
+        color: #000000 !important;
+        box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.4);
+        text-shadow: 0 0 1px rgba(255, 255, 255, 0.9);
+        animation: highlightPulse 2s ease-in-out;
+        border: none;
+      }
+
+      @keyframes highlightPulse {
+        0%, 100% {
+          box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.4);
+        }
+        50% {
+          box-shadow: 0 0 0 6px rgba(255, 193, 7, 0.6);
+          transform: scale(1.02);
+        }
+      }
+
+      /* ============ ENHANCED MESSAGE FORMATTING ============ */
+      .message-bubble ul, .message-bubble ol {
+        margin: 8px 0;
+        padding-left: 24px;
+      }
+
+      .message-bubble li {
+        margin: 6px 0;
+      }
+
+      .message-bubble strong {
+        color: var(--text-dark);
+        font-weight: 600;
+      }
+
+      .message-bubble code {
+        background: rgba(0, 0, 0, 0.05);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9em;
+      }
+
+      /* Typing Indicator */
+      .typing-indicator .message-bubble {
+        padding: 16px 20px;
+      }
+
+      .typing-dots {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .typing-dots span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--primary-light);
+        animation: typing 1.4s infinite;
+      }
+
+      .typing-dots span:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      .typing-dots span:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes typing {
+        0%,
+        60%,
+        100% {
+          transform: translateY(0);
+          opacity: 0.7;
+        }
+        30% {
+          transform: translateY(-10px);
+          opacity: 1;
+        }
+      }
+
+      /* ============ CHAT INPUT ============ */
+      .chat-input-container {
+        border-top: 1px solid #e8e8e8;
+        background: var(--white);
+        border-radius: 0 0 16px 16px;
+      }
+
+      .chat-form {
+        padding: 15px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      #chat-input {
+        flex: 1;
+        padding: 12px 16px;
+        border: 2px solid #e8e8e8;
+        border-radius: 25px;
+        font-size: 0.95rem;
+        outline: none;
+        transition: var(--transition);
+        background: #f8f9fa;
+      }
+
+      #chat-input:focus {
+        border-color: var(--primary);
+        background: var(--white);
+      }
+
+      .chat-send-btn {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-light)
+        );
+        border: none;
+        color: var(--white);
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+      }
+
+      .chat-send-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+      }
+
+      /* ============ SUGGESTION CHIPS ============ */
+      .chat-suggestions {
+        padding: 10px 15px 15px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .suggestion-chip {
+        padding: 8px 14px;
+        background: var(--white);
+        border: 1px solid var(--primary-light);
+        border-radius: 20px;
+        color: var(--primary);
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: var(--transition);
+        white-space: nowrap;
+        font-weight: 500;
+      }
+
+      .suggestion-chip:hover {
+        background: var(--primary);
+        color: var(--white);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(67, 97, 238, 0.2);
+      }
+
+      /* ============ RESPONSIVE DESIGN ============ */
+      @media (max-width: 768px) {
+        body {
+          padding: 0;
+        }
+
+        .container {
+          border-radius: 0;
+          min-height: 100vh;
+        }
+
+        header {
+          padding: 25px 20px;
+        }
+
+        .upload-container,
+        .content-container {
+          padding: 25px 20px;
+        }
+
+        .upload-area {
+          padding: 40px 15px;
+        }
+
+        .chat-panel {
+          width: 100%;
+          height: 100%;
+          bottom: 0;
+          right: 0;
+          border-radius: 0;
+        }
+
+        .chat-bubble {
+          bottom: 20px;
+          right: 20px;
+        }
+      }
+
+      footer {
+        text-align: center;
+        padding: 25px;
+        background: linear-gradient(135deg, #f8f9fa, #ffffff);
+        color: var(--text-light);
+        border-top: 1px solid #e8e8e8;
+        font-size: 0.9rem;
+      }
+    </style>
   </head>
   <body>
     <div class="container">
@@ -149,11 +1969,6 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
 
     <!-- Floating Buttons -->
     <div class="floating-buttons">
-      <!-- Data Management Button -->
-      <button id="data-manager-toggle" class="data-manager-btn" aria-label="Quản lý dữ liệu" title="Quản lý dữ liệu ChromaDB">
-        <i class="fas fa-database"></i>
-      </button>
-
       <!-- Library Button -->
       <button id="library-toggle" class="library-btn" aria-label="Mở thư viện cuộc họp" title="Thư viện cuộc họp">
         <i class="fas fa-folder-open"></i>
@@ -239,52 +2054,50 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
-    <!-- Library Modal -->
+    <!-- Library Sidebar -->
     <div id="library-sidebar" class="library-sidebar">
-      <div class="library-modal-container">
-        <div class="library-header">
-          <div class="library-header-content">
-            <h2><i class="fas fa-books"></i> Thư viện cuộc họp</h2>
-            <p id="library-subtitle">Đang tải...</p>
-          </div>
-          <button class="library-close-btn" id="library-close-btn">
-            <i class="fas fa-times"></i>
-          </button>
+      <div class="library-header">
+        <div class="library-header-content">
+          <h2><i class="fas fa-books"></i> Thư viện cuộc họp</h2>
+          <p id="library-subtitle">Đang tải...</p>
         </div>
+        <button class="library-close-btn" id="library-close-btn">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
 
-        <!-- Search Bar -->
-        <div class="library-search">
-          <div class="search-input-wrapper">
-            <i class="fas fa-search"></i>
-            <input
-              type="text"
-              class="library-search-input"
-              id="library-search-input"
-              placeholder="Tìm kiếm cuộc họp..."
-            />
-          </div>
+      <!-- Search Bar -->
+      <div class="library-search">
+        <div class="search-input-wrapper">
+          <i class="fas fa-search"></i>
+          <input
+            type="text"
+            class="library-search-input"
+            id="library-search-input"
+            placeholder="Tìm kiếm cuộc họp..."
+          />
         </div>
+      </div>
 
-        <!-- Filters -->
-        <div class="library-filters" id="library-filters">
-          <button class="filter-chip active" data-filter="all">
-            <i class="fas fa-th"></i> Tất cả
-          </button>
-          <button class="filter-chip" data-filter="recent">
-            <i class="fas fa-clock"></i> Gần đây
-          </button>
-          <button class="filter-chip" data-filter="thisweek">
-            <i class="fas fa-calendar-week"></i> Tuần này
-          </button>
-          <button class="filter-chip" data-filter="thismonth">
-            <i class="fas fa-calendar-alt"></i> Tháng này
-          </button>
-        </div>
+      <!-- Filters -->
+      <div class="library-filters" id="library-filters">
+        <button class="filter-chip active" data-filter="all">
+          <i class="fas fa-th"></i> Tất cả
+        </button>
+        <button class="filter-chip" data-filter="recent">
+          <i class="fas fa-clock"></i> Gần đây
+        </button>
+        <button class="filter-chip" data-filter="thisweek">
+          <i class="fas fa-calendar-week"></i> Tuần này
+        </button>
+        <button class="filter-chip" data-filter="thismonth">
+          <i class="fas fa-calendar-alt"></i> Tháng này
+        </button>
+      </div>
 
-        <!-- Content -->
-        <div class="library-content" id="library-content">
-          <!-- Meeting cards will be dynamically loaded here -->
-        </div>
+      <!-- Content -->
+      <div class="library-content" id="library-content">
+        <!-- Meeting cards will be dynamically loaded here -->
       </div>
     </div>
 
@@ -326,58 +2139,6 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
           <button class="modal-btn modal-btn-secondary" id="modal-close-footer-btn">
             <i class="fas fa-times"></i>
             Đóng
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Data Management Modal -->
-    <div id="data-manager-modal" class="data-manager-modal">
-      <div class="data-manager-container">
-        <div class="data-manager-header">
-          <div>
-            <h2><i class="fas fa-database"></i> Quản lý Dữ liệu ChromaDB</h2>
-            <p id="data-manager-subtitle">Tổng số: <span id="total-docs">0</span> tài liệu</p>
-          </div>
-          <button class="data-manager-close-btn" id="data-manager-close">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-
-        <div class="data-manager-toolbar">
-          <div class="search-bar">
-            <i class="fas fa-search"></i>
-            <input type="text" id="data-search" placeholder="Tìm kiếm theo ID, tiêu đề, hoặc ngày...">
-          </div>
-          <button class="btn-refresh" id="data-refresh">
-            <i class="fas fa-sync-alt"></i> Làm mới
-          </button>
-        </div>
-
-        <div class="data-manager-content" id="data-manager-content">
-          <!-- Data rows will be loaded here -->
-        </div>
-      </div>
-    </div>
-
-    <!-- Data Detail Modal -->
-    <div id="data-detail-modal" class="data-detail-modal">
-      <div class="data-detail-container">
-        <div class="data-detail-header">
-          <h3><i class="fas fa-info-circle"></i> Chi tiết Tài liệu</h3>
-          <button class="data-detail-close" id="data-detail-close">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        <div class="data-detail-body" id="data-detail-body">
-          <!-- Details will be loaded here -->
-        </div>
-        <div class="data-detail-footer">
-          <button class="btn-danger" id="btn-delete-doc">
-            <i class="fas fa-trash"></i> Xóa tài liệu
-          </button>
-          <button class="btn-secondary" id="btn-close-detail">
-            <i class="fas fa-times"></i> Đóng
           </button>
         </div>
       </div>
@@ -895,6 +2656,9 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
                         <i class="fas fa-calendar"></i>
                         ${meeting.date}
                       </div>
+                      <div class="meeting-card-relevance">
+                        <span class="relevance-badge ${relevanceClass}">${relevanceScore}% ${relevanceText}</span>
+                      </div>
                     </div>
                   </div>
                   <div class="meeting-card-arrow">
@@ -1155,6 +2919,7 @@ MEETING SUMMARY
 Title: ${meeting.title}
 Date: ${meeting.date}
 ID: ${meeting.id}
+Relevance: ${meeting.relevance}%
 ================================================================================
 
 ${meeting.summary || 'No content'}
@@ -1457,24 +3222,6 @@ Generated: ${new Date().toLocaleString('vi-VN')}
 
       libraryCloseBtn.addEventListener('click', closeLibrary);
 
-      // Close library when clicking on backdrop
-      librarySidebar.addEventListener('click', (e) => {
-        if (e.target === librarySidebar) {
-          closeLibrary();
-        }
-      });
-
-      // Close library and chat with ESC key
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-          if (librarySidebar.classList.contains('open')) {
-            closeLibrary();
-          } else if (chatPanel.classList.contains('open')) {
-            closeChat();
-          }
-        }
-      });
-
       // Load all meetings from backend
       async function loadAllMeetings() {
         showLibraryLoading();
@@ -1750,175 +3497,6 @@ Generated: ${new Date().toLocaleString('vi-VN')}
       console.log("📁 Summaries will be saved to: output/");
       console.log("🤖 Chatbot will read from: output/");
       console.log("📚 Library system loaded");
-
-      // ============ DATA MANAGEMENT FUNCTIONS ============
-      const dataManagerModal = document.getElementById('data-manager-modal');
-      const dataManagerToggle = document.getElementById('data-manager-toggle');
-      const dataManagerClose = document.getElementById('data-manager-close');
-      const dataManagerContent = document.getElementById('data-manager-content');
-      const dataRefresh = document.getElementById('data-refresh');
-      const dataSearch = document.getElementById('data-search');
-      const totalDocs = document.getElementById('total-docs');
-
-      const dataDetailModal = document.getElementById('data-detail-modal');
-      const dataDetailClose = document.getElementById('data-detail-close');
-      const dataDetailBody = document.getElementById('data-detail-body');
-      const btnDeleteDoc = document.getElementById('btn-delete-doc');
-      const btnCloseDetail = document.getElementById('btn-close-detail');
-
-      let allDocuments = [];
-      let currentDocId = null;
-
-      function openDataManager() {
-        dataManagerModal.classList.add('open');
-        loadAllData();
-      }
-
-      function closeDataManager() {
-        dataManagerModal.classList.remove('open');
-      }
-
-      dataManagerToggle.addEventListener('click', openDataManager);
-      dataManagerClose.addEventListener('click', closeDataManager);
-      dataManagerModal.addEventListener('click', (e) => {
-        if (e.target === dataManagerModal) closeDataManager();
-      });
-
-      async function loadAllData() {
-        try {
-          dataManagerContent.innerHTML = '<p style="text-align:center;padding:40px;color:#999;">Đang tải...</p>';
-          const response = await fetch('/get_all_data');
-          const data = await response.json();
-
-          allDocuments = data.documents;
-          totalDocs.textContent = data.total;
-          displayDocuments(allDocuments);
-        } catch (error) {
-          console.error('Error loading data:', error);
-          dataManagerContent.innerHTML = '<p style="text-align:center;padding:40px;color:#f56565;">Lỗi tải dữ liệu</p>';
-        }
-      }
-
-      function displayDocuments(docs) {
-        if (!docs || docs.length === 0) {
-          dataManagerContent.innerHTML = '<p style="text-align:center;padding:40px;color:#999;">Không có dữ liệu</p>';
-          return;
-        }
-
-        dataManagerContent.innerHTML = docs.map(doc => `
-          <div class="data-row" onclick="viewDocDetail('${doc.id}')">
-            <div class="data-row-header">
-              <div>
-                <h4 class="data-row-title">${doc.metadata.title || 'Không có tiêu đề'}</h4>
-                <div class="data-row-id">ID: ${doc.id}</div>
-              </div>
-            </div>
-            <div class="data-row-meta">
-              <div class="meta-item">
-                <i class="fas fa-calendar"></i>
-                <span>${doc.metadata.date || 'N/A'}</span>
-              </div>
-              <div class="meta-item">
-                <i class="fas fa-file"></i>
-                <span>${doc.metadata.filename || 'N/A'}</span>
-              </div>
-              <div class="meta-item">
-                <i class="fas fa-database"></i>
-                <span>${doc.content_length} ký tự</span>
-              </div>
-            </div>
-            <div class="data-row-preview">${doc.content_preview}</div>
-          </div>
-        `).join('');
-      }
-
-      function viewDocDetail(docId) {
-        const doc = allDocuments.find(d => d.id === docId);
-        if (!doc) return;
-
-        currentDocId = docId;
-        dataDetailBody.innerHTML = `
-          <div class="detail-section">
-            <h4><i class="fas fa-id-card"></i> Thông tin cơ bản</h4>
-            <div class="detail-field">
-              <span class="detail-label">Document ID:</span>
-              <span class="detail-value">${doc.id}</span>
-            </div>
-            <div class="detail-field">
-              <span class="detail-label">Tiêu đề:</span>
-              <span class="detail-value">${doc.metadata.title || 'N/A'}</span>
-            </div>
-            <div class="detail-field">
-              <span class="detail-label">Ngày:</span>
-              <span class="detail-value">${doc.metadata.date || 'N/A'}</span>
-            </div>
-            <div class="detail-field">
-              <span class="detail-label">Tên file:</span>
-              <span class="detail-value">${doc.metadata.filename || 'N/A'}</span>
-            </div>
-            <div class="detail-field">
-              <span class="detail-label">Độ dài:</span>
-              <span class="detail-value">${doc.content_length} ký tự</span>
-            </div>
-          </div>
-          <div class="detail-section">
-            <h4><i class="fas fa-file-alt"></i> Nội dung đầy đủ</h4>
-            <div class="detail-content">${doc.content}</div>
-          </div>
-        `;
-        dataDetailModal.classList.add('open');
-      }
-
-      function closeDetailModal() {
-        dataDetailModal.classList.remove('open');
-        currentDocId = null;
-      }
-
-      dataDetailClose.addEventListener('click', closeDetailModal);
-      btnCloseDetail.addEventListener('click', closeDetailModal);
-      dataDetailModal.addEventListener('click', (e) => {
-        if (e.target === dataDetailModal) closeDetailModal();
-      });
-
-      btnDeleteDoc.addEventListener('click', async () => {
-        if (!currentDocId) return;
-        if (!confirm(`Bạn có chắc muốn xóa tài liệu "${currentDocId}"?`)) return;
-
-        try {
-          const response = await fetch(`/delete_document/${currentDocId}`, { method: 'DELETE' });
-          const result = await response.json();
-
-          if (result.success) {
-            showToast('✅ Đã xóa tài liệu thành công');
-            closeDetailModal();
-            loadAllData();
-          } else {
-            showToast('❌ Lỗi xóa tài liệu');
-          }
-        } catch (error) {
-          console.error('Error deleting document:', error);
-          showToast('❌ Lỗi xóa tài liệu');
-        }
-      });
-
-      dataRefresh.addEventListener('click', loadAllData);
-
-      dataSearch.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase();
-        if (!query) {
-          displayDocuments(allDocuments);
-          return;
-        }
-
-        const filtered = allDocuments.filter(doc =>
-          doc.id.toLowerCase().includes(query) ||
-          (doc.metadata.title && doc.metadata.title.toLowerCase().includes(query)) ||
-          (doc.metadata.date && doc.metadata.date.includes(query))
-        );
-        displayDocuments(filtered);
-      });
-
-      console.log("🗄️ Data management system loaded");
     </script>
   </body>
 </html>

@@ -1,0 +1,27 @@
+Meeting Transcript: Mid-Week Check-in Dự án App Quản Lý Nhiệm Vụ
+Date: 12/10/2025
+Time: 9:30 AM - 10:30 AM
+Location: Online via Teams
+Participants: PM, Dev A, Dev B, Designer, Tester
+
+PM: Hi all, cập nhật tiến độ. Dev A, backend thế nào sau tuần 1?
+
+Dev A: API đăng nhập xong, đã fix lỗi từ Tester. Bây giờ mở rộng cho danh sách nhiệm vụ.
+
+Tester: Test API tốt, không lỗi lớn. Nhưng performance cần check khi data lớn.
+
+Dev B: Tôi đã tích hợp frontend với API đăng nhập. Giờ cần thêm thông báo push.
+
+PM: OK, thảo luận thông báo push. Chúng ta cần tích hợp Firebase hay gì?
+
+Dev A: Firebase ổn cho backend. Tôi sẽ setup.
+
+Designer: Tôi cần thiết kế icon cho thông báo. Sẽ làm trong tuần này, hạn chót 15/10.
+
+Tester: Tôi sẽ test tích hợp frontend-backend, báo cáo lỗi trước họp sau.
+
+PM: Lên kế hoạch demo sơ bộ cho tuần 3. Dev B, phối hợp chặt với Dev A nhé.
+
+All: Đồng ý.
+
+PM: Kết thúc họp.

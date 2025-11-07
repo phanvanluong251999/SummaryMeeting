@@ -1,0 +1,25 @@
+Meeting Transcript: Design Review Dự án App Quản Lý Nhiệm Vụ
+Date: 17/10/2025
+Time: 11:00 AM - 12:30 PM
+Location: Offline tại văn phòng
+Participants: PM, Dev A, Dev B, Designer, Tester
+
+PM: Chào, hôm nay review thiết kế. Designer, icon và UI mới?
+
+Designer: Icon cho thông báo xong. Tôi đề xuất thêm tính năng search nhiệm vụ, cần mockup mới.
+
+Dev B: Tốt, tôi sẽ cập nhật frontend với icon. Search nghe hay, nhưng phụ thuộc backend.
+
+Dev A: Database cần tối ưu cho search. Tôi sẽ làm, dựa trên tiến độ tuần trước.
+
+Tester: Test performance backend hiện tại OK, nhưng search có thể làm chậm nếu không index.
+
+PM: Quyết định: Thêm search. Designer, vẽ mockup search, hạn chót 20/10.
+
+Dev A: Tôi sẽ tối ưu database song song.
+
+PM: Cập nhật budget dựa trên tiến độ này. Có vấn đề gì không?
+
+All: Không.
+
+PM: Hẹn họp testing focus.

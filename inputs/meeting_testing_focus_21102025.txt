@@ -1,0 +1,23 @@
+Meeting Transcript: Testing Focus Dự án App Quản Lý Nhiệm Vụ
+Date: 21/10/2025
+Time: 3:00 PM - 4:00 PM
+Location: Online via Zoom
+Participants: PM, Dev A, Dev B, Designer, Tester
+
+PM: Focus vào testing hôm nay. Tester, kết quả test?
+
+Tester: Test end-to-end: Đăng nhập OK, danh sách nhiệm vụ có lỗi nhỏ về sync. Search cần test thêm.
+
+Dev A: Lỗi sync từ database, tôi sẽ sửa dựa trên feedback.
+
+Dev B: Frontend search gần xong, nhưng phụ thuộc fix từ Dev A.
+
+Designer: Mockup search đã chỉnh, review OK.
+
+PM: Lập kế hoạch release beta. Tester, test đầy đủ và báo cáo chi tiết, hạn chót 25/10.
+
+Dev A: Sửa lỗi database ngay.
+
+Dev B: Hoàn thiện frontend sau khi Dev A fix.
+
+PM: Chuẩn bị báo cáo tiến độ tháng. Good job team.

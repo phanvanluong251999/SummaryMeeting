@@ -1,0 +1,21 @@
+Meeting Transcript: Wrap-up Tháng Dự án App Quản Lý Nhiệm Vụ
+Date: 28/10/2025
+Time: 10:00 AM - 11:00 AM
+Location: Online via Teams
+Participants: PM, Dev A, Dev B, Designer, Tester
+
+PM: Tổng kết tháng 10. Tiến độ tổng thể tốt, release beta sắp sẵn sàng.
+
+Tester: Báo cáo lỗi cuối: Chỉ còn minor bugs, đã note cải thiện.
+
+Dev A: Backend ổn, chuẩn bị cập nhật cho tháng 11.
+
+Dev B: Frontend tích hợp đầy đủ, test nội bộ OK.
+
+Designer: Tất cả mockup lưu trữ, sẵn sàng thiết kế mới.
+
+PM: Gửi báo cáo cuối tháng. Kế hoạch tháng sau: Focus vào optimization và thêm features.
+
+All: Đồng ý.
+
+PM: Cảm ơn mọi người, họp kết thúc.
