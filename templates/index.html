@@ -78,12 +78,6 @@
                 <i class="fas fa-upload"></i> Tải lên & Xử lý
               </button>
             </div>
-            <div id="upload-status" class="upload-status">
-              <i class="fas fa-check-circle"></i>
-              <span id="upload-status-text"
-                >Đã tải lên: <strong id="uploaded-filename"></strong
-              ></span>
-            </div>
           </div>
 
           <!-- Content Display -->
@@ -423,7 +417,6 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
     <!-- Loading Overlay -->
     <div id="loading" class="loading-overlay">
       <div class="loading-spinner"></div>
-      <p>Đang xử lý...</p>
     </div>
 
     <!-- Toast Notification -->
@@ -451,8 +444,6 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
       const summarizeBtn = document.getElementById('summarize-btn');
       const fileName = document.getElementById('file-name');
       const fileNameText = document.getElementById('file-name-text');
-      const uploadStatus = document.getElementById('upload-status');
-      const uploadedFilename = document.getElementById('uploaded-filename');
       const loading = document.getElementById('loading');
 
       // Summary editing elements
@@ -486,10 +477,6 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
       function showLoading(show, message = 'Đang xử lý...') {
         if (show) {
           loading.style.display = 'flex';
-          const loadingText = loading.querySelector('p');
-          if (loadingText) {
-            loadingText.textContent = message;
-          }
         } else {
           loading.style.display = 'none';
         }
@@ -497,8 +484,32 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
 
       function showToast(message, type = 'info') {
         const toast = document.getElementById('toast');
-        toast.textContent = message;
+
+        // Add icon based on type
+        let icon = '';
+        switch (type) {
+          case 'success':
+            icon =
+              '<i class="fas fa-check-circle" style="margin-right: 8px;"></i>';
+            break;
+          case 'error':
+            icon =
+              '<i class="fas fa-exclamation-circle" style="margin-right: 8px;"></i>';
+            break;
+          case 'warning':
+            icon =
+              '<i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>';
+            break;
+          case 'info':
+            icon =
+              '<i class="fas fa-info-circle" style="margin-right: 8px;"></i>';
+            break;
+        }
+
+        toast.innerHTML = icon + message;
         toast.className = `toast ${type} show`;
+
+        // Auto hide after 3 seconds
         setTimeout(() => {
           toast.classList.remove('show');
         }, 3000);
@@ -511,7 +522,6 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
           fileName.style.display = 'inline-flex';
           uploadArea.classList.add('has-file');
           uploadBtn.style.display = 'inline-flex';
-          uploadStatus.style.display = 'none';
         }
       });
 
@@ -661,17 +671,14 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
           let data;
 
           if (isAudio) {
-            // Clear original text area to prepare for streaming
-            originalText.textContent = 'Đang xử lý...';
+            // Set processing message
+            originalText.textContent = 'Đang xử lý file audio...';
 
-            // Use streaming for audio files
-            showLoading(true, 'Đang tải lên file audio...');
             data = await handleAudioFileWithProgress(file);
           } else {
             // Regular upload for text files
             const formData = new FormData();
             formData.append('meeting_file', file);
-            showLoading(true, 'Đang tải lên file...');
 
             const response = await fetch('/load_file', {
               method: 'POST',
@@ -681,7 +688,6 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
             data = await response.json();
           }
 
-          showLoading(false);
           isUploading = false;
           uploadBtn.disabled = false;
 
@@ -704,14 +710,19 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
             // Show the summarize button
             summarizeBtn.classList.remove('hidden');
 
-            // Show upload success status
+            // Reset upload UI - allow user to upload new file
             uploadBtn.style.display = 'none';
             fileName.style.display = 'none';
-            uploadStatus.style.display = 'flex';
-            uploadedFilename.textContent = data.filename;
+            uploadArea.classList.remove('has-file');
 
+            // Clear file input to allow re-uploading same file
+            fileInput.value = '';
+
+            // Show success popup instead of text
             showToast(
-              `Tải file thành công! (${data.length.toLocaleString()} ký tự)`,
+              `✅ Tải file thành công: ${
+                data.filename
+              } (${data.length.toLocaleString()} ký tự)`,
               'success'
             );
 
@@ -725,7 +736,6 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
             showToast('Lỗi: Phản hồi không hợp lệ', 'error');
           }
         } catch (err) {
-          showLoading(false);
           isUploading = false;
           uploadBtn.disabled = false;
           originalText.textContent = 'Lỗi khi tải file.';
@@ -764,7 +774,6 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
           fileName.style.display = 'inline-flex';
           uploadArea.classList.add('has-file');
           uploadBtn.style.display = 'inline-flex';
-          uploadStatus.style.display = 'none';
         }
       });
 
