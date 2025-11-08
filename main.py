@@ -845,10 +845,180 @@ def get_all_meeting_dates_chromadb() -> List[str]:
                     dates.add(metadata['date'])
         
         return sorted(list(dates), reverse=True)
-        
+
     except Exception as e:
         logger.error(f"Error getting meeting dates: {e}")
         return []
+
+# -------- QUERY INTENTION CLASSIFIER --------
+def classify_query_intention(
+    question: str,
+    conversation_context: str = "",
+    chat_history: List[Dict] = None
+) -> Dict:
+    """
+    Classify the intention/purpose of a query to enable more targeted result filtering.
+
+    NEW: Also detects if this is a FOLLOW-UP question (about current meeting)
+    vs a NEW SEARCH query (searching across meetings).
+
+    Returns:
+    {
+        "intention_type": "person_focused|task_focused|...|topic_focused",
+        "confidence": float (0-1),
+        "is_followup_question": bool,  # NEW: True if follow-up, False if new search
+        "extracted_entities": {...},
+        "should_filter_metadata": {...},
+        "reasoning": str
+    }
+    """
+    try:
+        # Define intention patterns (Vietnamese + English)
+        person_keywords = [
+            'dev', 'pm', 'tester', 'designer', 'ba', 'qa', 'lead', 'manager',
+            'gì', 'người nào', 'ai là', 'thế nào', 'của ai',
+            'what did', 'did', 'who is', 'which', 'người', 'tên', 'name'
+        ]
+
+        task_keywords = [
+            'task', 'action', 'nhiệm vụ', 'công việc', 'làm gì', 'sẽ làm', 'cần làm',
+            'assign', 'responsible', 'phụ trách', 'đảm bảo', 'hoàn thành',
+            'what to do', 'what should', 'need to', 'have to', 'deadline'
+        ]
+
+        decision_keywords = [
+            'decide', 'decision', 'quyết định', 'phê duyệt', 'đồng ý', 'không đồng ý',
+            'approved', 'rejected', 'conclusion', 'kết luận',
+            'agreed', 'disagreed', 'finalize', 'finalized'
+        ]
+
+        time_keywords = [
+            'duration', 'long', 'thời gian', 'bao lâu', 'kéo dài', 'phút', 'giờ',
+            'start', 'end', 'begin', 'finished', 'started at', 'ended at',
+            'how long', 'what time', 'when', 'schedule'
+        ]
+
+        participant_keywords = [
+            'participant', 'attendee', 'người tham gia', 'có ai', 'who attended',
+            'who was there', 'who joined', 'attending', 'present', 'số lượng'
+        ]
+
+        comparison_keywords = [
+            'compare', 'difference', 'between', 'vs', 'versus', 'khác nhau',
+            'so với', 'so sánh', 'giống', 'different', 'same', 'each'
+        ]
+
+        # ⭐ NEW: Keywords that indicate a NEW SEARCH across meetings (not follow-up)
+        search_keywords = [
+            'meeting nào', 'cuộc họp nào', 'which meeting', 'what meeting',
+            'đề cập', 'mentioned', 'mention', 'nói về', 'talk about',
+            'liên quan', 'related', 'about', 'contain', 'có không'
+        ]
+
+        question_lower = question.lower()
+
+        # Extract potential person names (simple heuristic: capitalized words)
+        # ⭐ IMPROVED: Exclude common technical terms (not people names)
+        exclude_technical_terms = [
+            'database', 'api', 'frontend', 'backend', 'feature', 'test', 'system',
+            'search', 'authentication', 'server', 'client', 'security'
+        ]
+        name_pattern = r'\b([A-Z][a-zàáảãạâầấẩẫậăằắẳẵặèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]+)\b'
+        potential_names = [
+            n for n in re.findall(name_pattern, question)
+            if n.lower() not in exclude_technical_terms
+        ]
+
+        # Count keyword matches for each intention type
+        scores = {
+            "person_focused": sum(1 for kw in person_keywords if kw in question_lower),
+            "task_focused": sum(1 for kw in task_keywords if kw in question_lower),
+            "decision_focused": sum(1 for kw in decision_keywords if kw in question_lower),
+            "time_focused": sum(1 for kw in time_keywords if kw in question_lower),
+            "participant_focused": sum(1 for kw in participant_keywords if kw in question_lower),
+            "comparison_focused": sum(1 for kw in comparison_keywords if kw in question_lower),
+            "topic_focused": 0  # Default fallback
+        }
+
+        # ⭐ NEW: Detect if this is a SEARCH query vs FOLLOW-UP question
+        search_indicator_score = sum(1 for kw in search_keywords if kw in question_lower)
+        is_followup_question = search_indicator_score == 0  # No search keywords = follow-up
+
+        # Determine primary intention
+        max_score = max(scores.values())
+        primary_intention = max([k for k, v in scores.items() if v == max_score])
+
+        # Calculate confidence (0-1)
+        if max_score == 0:
+            confidence = 0.3  # Low confidence for generic queries
+            primary_intention = "topic_focused"
+        else:
+            # Confidence = (max_score - second_max_score) / (max_score + 1)
+            all_scores = sorted(scores.values(), reverse=True)
+            confidence = min(1.0, (all_scores[0] - all_scores[1]) / (all_scores[0] + 1)) if len(all_scores) > 1 else 0.8
+
+        # Determine what metadata to filter by
+        should_filter_metadata = {
+            "by_participants": primary_intention in ["person_focused", "participant_focused", "comparison_focused"],
+            "by_actions": primary_intention in ["task_focused", "person_focused"],
+            "by_decisions": primary_intention == "decision_focused",
+            "by_duration": primary_intention == "time_focused",
+            "by_topics": primary_intention == "topic_focused"
+        }
+
+        # Extract entities
+        extracted_entities = {
+            "people": potential_names[:5],  # Limit to first 5
+            "keywords": [],
+            "time_keywords": [kw for kw in time_keywords if kw in question_lower],
+            "comparison_keywords": [kw for kw in comparison_keywords if kw in question_lower],
+            "search_indicators": [kw for kw in search_keywords if kw in question_lower]  # ⭐ NEW
+        }
+
+        # Extract action-related keywords
+        if should_filter_metadata["by_actions"]:
+            extracted_entities["keywords"] = [kw for kw in task_keywords if kw in question_lower]
+
+        # Build reasoning
+        reasoning = f"Query detected as {primary_intention} (confidence: {confidence:.2f}). "
+        if is_followup_question:
+            reasoning += "⭐ FOLLOW-UP question (about same meeting). "
+        else:
+            reasoning += f"⭐ NEW SEARCH query (search across meetings). Found {len(extracted_entities['search_indicators'])} search keywords. "
+
+        if potential_names:
+            reasoning += f"Valid people: {', '.join(potential_names[:3])}. "
+        if extracted_entities["time_keywords"]:
+            reasoning += f"Time keywords found. "
+        if extracted_entities["comparison_keywords"]:
+            reasoning += f"Comparison query. "
+
+        result = {
+            "intention_type": primary_intention,
+            "confidence": confidence,
+            "is_followup_question": is_followup_question,  # ⭐ NEW
+            "extracted_entities": extracted_entities,
+            "should_filter_metadata": should_filter_metadata,
+            "reasoning": reasoning.strip()
+        }
+
+        logger.info(f"🔍 Query Intention: {result['intention_type']} | Follow-up: {result['is_followup_question']}")
+        logger.info(f"   People: {potential_names} | Search keywords: {extracted_entities['search_indicators']}")
+        logger.info(f"   Reasoning: {result['reasoning']}")
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Error in query intention classification: {e}")
+        # Return safe default
+        return {
+            "intention_type": "topic_focused",
+            "confidence": 0.0,
+            "is_followup_question": False,  # ⭐ NEW
+            "extracted_entities": {"people": [], "keywords": [], "time_keywords": [], "comparison_keywords": [], "search_indicators": []},
+            "should_filter_metadata": {"by_participants": False, "by_actions": False, "by_decisions": False, "by_duration": False, "by_topics": True},
+            "reasoning": "Failed to classify intention, defaulting to topic-focused"
+        }
 
 # -------- UTILITY FUNCTIONS --------
 def ensure_directories():
@@ -1481,6 +1651,9 @@ def chatbot():
             conversation_context = f"\n\nIMPORTANT CONTEXT: The user was just asking about the meeting on {current_meeting_context['date']} (titled: {current_meeting_context.get('title', 'Unknown')}). If the current question is a follow-up (e.g., asking about someone's tasks, asking 'what about...'), it likely refers to THIS SAME MEETING."
 
         # --- STEP 1: Classify question ---
+        logger.info(f"📥 Received question: '{question}'")
+        logger.info(f"📦 Current session context: {session.get('current_meeting_context', {})}")
+
         now = datetime.now()
         year = now.year
         month = now.month
@@ -1539,6 +1712,15 @@ def chatbot():
         logger.info(f"🧩 Classified as: {classification}")
         logger.info(f"❓ Original question: '{question}'")
 
+        # --- STEP 1.5: Classify query intention for targeted result filtering ---
+        query_intention = classify_query_intention(
+            question=question,
+            conversation_context=conversation_context,
+            chat_history=chat_history
+        )
+        logger.info(f"🎯 Query Intention Classification: {query_intention['intention_type']}")
+        logger.info(f"   Entities: People={query_intention['extracted_entities']['people']}, Keywords={query_intention['extracted_entities']['keywords']}")
+
         # --- STEP 2: Prepare search filter ---
         date_filter = classification.get("date") if classification["type"] == "date" else None
         multi_date_filter = None  # For filtering multiple meetings
@@ -1552,12 +1734,30 @@ def chatbot():
             is_context_query = True
             is_multi_meeting_search = True
             logger.info(f"🔥 Multi-meeting query detected: Searching across {len(multi_date_filter)} meetings: {multi_date_filter}")
-        # 🔥 CONTEXT-AWARE ENHANCEMENT: If this is a follow-up question (topic type) and we have meeting context,
-        # automatically apply that meeting's date as a filter
-        elif classification["type"] == "topic" and current_meeting_context and date_filter is None:
+
+        # ⭐ IMPROVED CONTEXT-AWARE: Only apply date filter for TRUE follow-up questions, NOT for search queries
+        # A follow-up question asks about the SAME meeting (e.g., "có những ai", "làm gì")
+        # A search query asks across meetings (e.g., "meeting nào đề cập X", "cuộc họp nào nói về Y")
+        elif (classification["type"] == "topic" and
+              current_meeting_context and
+              date_filter is None and
+              query_intention.get("is_followup_question", False)):  # ⭐ NEW: Check if it's a follow-up
+            # This is a FOLLOW-UP question about the same meeting
             date_filter = current_meeting_context['date']
             is_context_query = True
-            logger.info(f"💡 Context-aware query: Using previous meeting date '{date_filter}' as filter for follow-up question")
+            logger.info(f"💡 Context-aware query (FOLLOW-UP): Using previous meeting date '{date_filter}' for follow-up question")
+            logger.info(f"   Context meeting: {current_meeting_context.get('title', 'Unknown')} ({current_meeting_context.get('date')})")
+        elif classification["type"] == "topic" and date_filter is None and not query_intention.get("is_followup_question", False):
+            # This is a NEW SEARCH query - search across ALL meetings, not just the current one
+            logger.info(f"🔍 NEW SEARCH query detected: Searching across ALL meetings (not limited to '{current_meeting_context['date'] if current_meeting_context else 'N/A'}')")
+
+        # ⭐ DEBUG: Log the final decision about date_filter
+        logger.info(f"🔎 FINAL STATE before search:")
+        logger.info(f"   - classification.type={classification.get('type')}")
+        logger.info(f"   - current_meeting_context={current_meeting_context}")
+        logger.info(f"   - is_followup_question={query_intention.get('is_followup_question', False)}")
+        logger.info(f"   - date_filter={date_filter}")
+        logger.info(f"   - is_context_query={is_context_query}")
 
         # Debug: Show available dates in database
         try:
@@ -1581,6 +1781,11 @@ def chatbot():
         else:
             where_filter = None  # No filter (search all)
 
+        logger.info(f"📊 Search filters: date_filter={date_filter}, multi_date_filter={multi_date_filter}, where_filter={where_filter}")
+
+        # ⭐ IMPORTANT: For follow-up questions, track if we're using a date filter
+        is_using_context_filter = date_filter and is_context_query
+
         try:
             semantic_results = meeting_collection.query(
                 query_texts=[question],
@@ -1595,29 +1800,86 @@ def chatbot():
                     distance = semantic_results['distances'][0][i] if 'distances' in semantic_results else 0
                     similarity = 1 - distance
 
-                    # For date queries: accept ALL results since ChromaDB already filtered by date
-                    # The date filter is precise, so we don't need strict similarity filtering
-                    if classification["type"] == "date" or is_context_query:
-                        logger.info(f"   {'Date' if classification['type'] == 'date' else 'Context'} query result {i+1}: distance={distance:.4f} (accepted - date filter is precise)")
-                    # For topic queries: apply similarity threshold
-                    elif classification["type"] == "topic":
-                        # Only include results with reasonable similarity (distance < 1.3)
-                        # Note: 1.0-1.3 is still semantically relevant for topic queries
-                        if distance > 1.5:
-                            logger.info(f"   Filtered out result {i+1}: distance={distance:.4f} (too high for topic query)")
-                            continue
+                    # --- STEP 3.5: Intention-aware result filtering ---
+                    meta = semantic_results['metadatas'][0][i]
+                    should_include = True
+                    filter_reason = ""
 
-                    search_results.append({
-                        'id': semantic_results['ids'][0][i],
-                        'summary': semantic_results['documents'][0][i],
-                        'metadata': semantic_results['metadatas'][0][i],
-                        'distance': distance,
-                        'similarity': similarity
-                    })
+                    # For date queries: accept ALL results since ChromaDB already filtered by date
+                    if classification["type"] == "date" or is_context_query:
+                        should_include = True
+                        filter_reason = "date/context filter"
+                    # Apply intention-based metadata filtering
+                    else:
+                        # Check metadata relevance based on query intention
+                        if query_intention["should_filter_metadata"]["by_actions"]:
+                            # For action/task queries, prioritize results with action info
+                            has_actions = meta.get('has_actions', False)
+                            action_count = meta.get('action_count', 0)
+                            if action_count == 0:
+                                logger.info(f"   Result {i+1}: distance={distance:.4f} (has no actions, might be less relevant)")
+
+                        if query_intention["should_filter_metadata"]["by_duration"]:
+                            # For time queries, check if duration info is available
+                            duration = meta.get('duration_minutes', 0)
+                            if duration == 0:
+                                logger.info(f"   Result {i+1}: distance={distance:.4f} (has no duration info)")
+
+                        if query_intention["should_filter_metadata"]["by_decisions"]:
+                            # For decision queries, prioritize meetings with decision info
+                            has_decisions = meta.get('has_decisions', False)
+                            if not has_decisions:
+                                logger.info(f"   Result {i+1}: distance={distance:.4f} (might not have decisions)")
+
+                        # Apply similarity threshold based on intention and confidence
+                        if query_intention["intention_type"] == "topic_focused":
+                            # Topic queries: stricter similarity threshold
+                            if distance > 1.5:
+                                should_include = False
+                                filter_reason = f"low similarity for topic query (distance={distance:.4f})"
+                        elif query_intention["intention_type"] in ["person_focused", "task_focused"]:
+                            # Person/task queries: moderate threshold
+                            if distance > 1.3:
+                                should_include = False
+                                filter_reason = f"low similarity for {query_intention['intention_type']} query"
+                        else:
+                            # Other intentions: more lenient
+                            if distance > 1.8:
+                                should_include = False
+                                filter_reason = f"low similarity for {query_intention['intention_type']} query"
+
+                    if should_include:
+                        search_results.append({
+                            'id': semantic_results['ids'][0][i],
+                            'summary': semantic_results['documents'][0][i],
+                            'metadata': meta,
+                            'distance': distance,
+                            'similarity': similarity,
+                            'intention_matched': True
+                        })
+                        logger.info(f"   Result {i+1}: distance={distance:.4f} (accepted - {filter_reason or 'matches intention'})")
+                    else:
+                        logger.info(f"   Result {i+1}: distance={distance:.4f} (filtered out - {filter_reason})")
 
             logger.info(f"🔍 Semantic search returned {len(search_results)} results")
+
+            # ⭐ CRITICAL FIX: If this is a follow-up question with context, FORCE results to stay within context meeting
+            if (query_intention.get("is_followup_question", False) and
+                current_meeting_context and
+                len(search_results) > 0):
+                context_date = current_meeting_context['date']
+                results_in_context = [r for r in search_results if r['metadata'].get('date') == context_date]
+
+                if results_in_context:
+                    logger.info(f"⭐ FOLLOW-UP: Filtering results to context meeting ({context_date})")
+                    logger.info(f"   Found {len(results_in_context)} results in context meeting (from {len(search_results)} total)")
+                    search_results = results_in_context
+                else:
+                    logger.warning(f"⚠️ FOLLOW-UP: No results found in context meeting ({context_date})")
+                    logger.warning(f"   Keeping broader search results from {[r['metadata'].get('date') for r in search_results]}")
+
             if len(search_results) > 0:
-                logger.info(f"📊 Top results:")
+                logger.info(f"📊 Top results (after context filtering):")
                 for i, result in enumerate(search_results[:5]):
                     logger.info(f"   {i+1}. Date: {result.get('metadata', {}).get('date', 'N/A')}, Title: {result.get('metadata', {}).get('title', 'N/A')[:50]}..., Distance: {result.get('distance', 'N/A'):.4f}")
             else:
@@ -1640,9 +1902,6 @@ def chatbot():
             logger.error(f"❌ Error in semantic search: {e}")
             search_results = []
 
-        # Limit to top 5 for context
-        search_results = search_results[:5]
-
         # --- STEP 4: Build context with rich metadata ---
         context = ""
         meeting_details = []
@@ -1651,7 +1910,7 @@ def chatbot():
         if search_results:
             context = "📋 Relevant Meeting Information:\n\n"
 
-            for idx, result in enumerate(search_results):
+            for idx, result in enumerate(search_results[:5]):  # Limit to top 5 results to avoid token overflow
                 meta = result["metadata"]
                 summary = result['summary']
 
@@ -1727,18 +1986,47 @@ def chatbot():
                 total_context_chars += len(meeting_context)
 
         # --- STEP 5: Truncate context if needed ---
-        context, context_tokens = truncate_context_intelligently(
-            context=context,
-            max_tokens=6000,
-            model="gpt-4o-mini"
-        )
+        if context:
+            try:
+                context, context_tokens = truncate_context_intelligently(
+                    context=context,
+                    max_tokens=6000,
+                    model="gpt-4o-mini"
+                )
+                logger.info(f"📄 Context: {total_context_chars} chars, {context_tokens} tokens")
+            except Exception as e:
+                logger.warning(f"⚠️ Error truncating context: {e}. Using full context.")
+                context_tokens = 0
+        else:
+            context_tokens = 0
+            logger.info(f"📄 No context to truncate (empty search results)")
 
-        logger.info(f"📄 Context: {total_context_chars} chars, {context_tokens} tokens")
+        # --- STEP 6: Generate answer with metadata-aware prompting (enhanced with intention-based guidance) ---
 
-        # --- STEP 6: Generate answer with metadata-aware prompting ---
+        # Build intention-specific instructions
+        intention_guidance = ""
+        if query_intention["intention_type"] == "time_focused":
+            intention_guidance = "\n⏱️ **QUERY INTENTION: TIME-FOCUSED**\nLàm rõ về THỜI GIAN: Trích xuất metadata 'duration_minutes', 'start_time', 'end_time', 'duration_source'."
+        elif query_intention["intention_type"] == "person_focused":
+            intention_guidance = f"\n👤 **QUERY INTENTION: PERSON-FOCUSED**\nHỏi về NGƯỜI: Tập trung vào participant roles và individual actions. Extracted people: {', '.join(query_intention['extracted_entities']['people']) or 'N/A'}"
+        elif query_intention["intention_type"] == "task_focused":
+            intention_guidance = "\n✅ **QUERY INTENTION: TASK-FOCUSED**\nHỏi về NHIỆM VỤ/HÀNH ĐỘNG: Trích xuất từ 'individual_actions' metadata và 'CONTENT' section. Ưu tiên thông tin từ CONTENT."
+        elif query_intention["intention_type"] == "participant_focused":
+            intention_guidance = "\n👥 **QUERY INTENTION: PARTICIPANT-FOCUSED**\nHỏi về NGƯỜI THAM GIA: Trích xuất 'participants', 'participant_count', 'participant_roles' metadata."
+        elif query_intention["intention_type"] == "decision_focused":
+            intention_guidance = "\n🎯 **QUERY INTENTION: DECISION-FOCUSED**\nHỏi về QUYẾT ĐỊNH: Tập trung vào phần 'CONTENT' để tìm các quyết định, phê duyệt, hoặc kết luận."
+        elif query_intention["intention_type"] == "comparison_focused":
+            intention_guidance = f"\n🔄 **QUERY INTENTION: COMPARISON-FOCUSED**\nSo sánh GIỮA CÁC CUỘC HỌP: Cân nhắc kỹ lưỡng từng meeting context, ghi rõ sự khác nhau và giống nhau."
+        else:
+            intention_guidance = "\n📋 **QUERY INTENTION: TOPIC-FOCUSED**\nHỏi về CHỦ ĐỀ: Tìm thông tin liên quan đến các chủ đề được thảo luận."
+
         system_prompt = f"""Bạn là trợ lý thông minh chuyên phân tích và tổng hợp thông tin từ các cuộc họp.
 
 📋 HƯỚNG DẪN TRẢ LỜI:
+
+0. **PHÂN LOẠI INTENT CỦA CÂUHỎI (CẢI TIẾN MỚI):**{intention_guidance}
+   - Confidence level: {query_intention['confidence']:.2f}/1.0
+   - Reasoning: {query_intention['reasoning']}
 
 1. **Sử dụng metadata mới (CẢI TIẾN):**
 
@@ -1756,7 +2044,7 @@ def chatbot():
    - Individual Actions: Nhiệm vụ cụ thể của từng người
    - Định dạng: "Người: Nhiệm vụ (deadline: ngày)"
 
-2. **Cấu trúc câu trả lời theo loại câu hỏi:**
+2. **Cấu trúc câu trả lời theo loại câu hỏi (dựa trên INTENT):**
 
    ⏱️ **Khi hỏi về THỜI GIAN:**
    - Trả lời thời lượng cuộc họp từ metadata "duration_minutes"
@@ -1767,6 +2055,7 @@ def chatbot():
    👤 **Khi hỏi về NGƯỜI/NHÂN VẬT:**
    - Liệt kê từ metadata "participants" và "participant_roles"
    - Ghi rõ vai trò của từng người
+   - Liệt kê các tasks được gán cho từng người
    - Ví dụ: "Có 4 người tham gia: Dev A (Developer), PM Nam (Project Manager), Tester B (Tester), Designer C (Designer)"
 
    ✅ **Khi hỏi về HÀNH ĐỘNG/NHIỆM VỤ CỦA NGƯỜI CỤ THỂ:**
@@ -1778,6 +2067,16 @@ def chatbot():
    - Ví dụ:
      • Dev A: Hoàn thiện API authentication (deadline: 2024-12-01)
      • Tester B: Viết test cases cho module login
+
+   👥 **Khi hỏi về NGƯỜI THAM GIA:**
+   - Trích dẫn trực tiếp từ metadata "participants" field
+   - Ghi rõ số lượng và vai trò từ "participant_count" và "participant_roles"
+   - Ví dụ: "Cuộc họp có 5 người tham gia: Dev A (Developer), Dev B (Developer), PM Nam (Project Manager), Tester Linh (Tester), Designer Hạnh (Designer)"
+
+   🎯 **Khi hỏi về QUYẾT ĐỊNH:**
+   - Tìm từ phần "📄 CONTENT:" các quyết định, kết luận, phê duyệt
+   - Liệt kê rõ ràng từng quyết định được đưa ra
+   - Ví dụ: "Các quyết định chính: (1) Phê duyệt version 1.0 của feature X, (2) Hoãn release date thêm 2 tuần"
 
 3. **Quy tắc quan trọng - PHẢI TUÂN THỦ NGHIÊM NGẶT:**
    - ⚠️ **QUY TẮC SỐ 1:** Khi trả lời về nhiệm vụ của người cụ thể, ĐỌC TRỰC TIẾP từ phần "📄 CONTENT:"
@@ -1801,22 +2100,120 @@ def chatbot():
    - Nếu score thấp (<50%), hãy thận trọng khi đưa ra kết luận
 
 📚 CONTEXT:
-{context if context else "Chưa có dữ liệu cuộc họp nào."}
+{context if context.strip() else "⚠️ Không tìm thấy dữ liệu cuộc họp cho câu hỏi này. Hãy nói rõ rằng bạn không thể trả lời."}
+
+📤 ĐỊNH DẠNG KẾT QUẢ TRẢ VỀ (LINH HOẠT):
+
+**LƯU Ý:** Trả lời một câu trả lời tự nhiên, rõ ràng, ngắn gọn.
+
+Nếu bạn muốn, bạn có thể sử dụng JSON format sau để giúp tổ chức thông tin:
+{{
+  "answer": "Câu trả lời hoàn chỉnh, ngắn gọn, đúng ngữ cảnh, tuân theo các quy tắc trên.",
+  "titleMeetings": ["Tên cuộc họp 1", "Tên cuộc họp 2"]
+}}
+
+**TUỲ CHỌN - Bạn có thể:**
+- Trả lời bằng JSON format (nếu có thể)
+- Hoặc trả lời bằng plain text tự nhiên
+
+**Ưu tiên:**
+1. **Câu trả lời chính xác, hữu ích** > Định dạng cứng nhắc
+2. Nếu là plain text: Câu trả lời nên rõ ràng, chi tiết, theo ngữ cảnh
+3. Ghi rõ tên cuộc họp nếu có thể (để hỗ trợ tìm kiếm)
+
+**Ví dụ:**
+✅ ĐÚNG: "Có 5 người tham gia: PM (Project Manager), Dev A (Developer A - Backend), Dev B (Developer B - Frontend), Designer, Tester."
+✅ ĐÚNG: {{"answer": "Có 5 người tham gia...", "titleMeetings": ["Meeting Name"]}}
+❌ KHÔNG cần: Code block không cần thiết, plain text tốt hơn
 """
 
         messages = [{"role": "system", "content": system_prompt}]
         messages.extend(chat_history[-10:])
         messages.append({"role": "user", "content": question})
 
+        # --- STEP 6.4: Generate answer (FLEXIBLE MODE - no strict JSON requirement) ---
+        # Removed strict JSON mode to support Vietnamese text better
+        # We'll parse the response flexibly instead
         answer_response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
             temperature=0,  # Zero temperature for maximum accuracy and no hallucinations
             max_tokens=1500
+            # Note: Removed response_format={"type": "json_object"} for better Vietnamese support
         )
 
-        raw_answer = answer_response.choices[0].message.content or "Xin lỗi, tôi không chắc cách trả lời câu hỏi đó."
+        # --- STEP 6.5: Parse and validate response with FLEXIBLE JSON extraction ---
+        response_content = answer_response.choices[0].message.content
 
+        # Debug logging
+        logger.info(f"📨 Raw API Response length: {len(response_content) if response_content else 0}")
+        if response_content:
+            logger.info(f"📨 First 300 chars: {response_content[:300]}")
+
+        # Parse JSON with intelligent fallback strategy
+        result = None
+
+        if not response_content or response_content.strip() == "":
+            logger.error("❌ API returned empty response")
+            result = {
+                "answer": "Xin lỗi, tôi không thể xử lý câu hỏi này. Vui lòng thử lại.",
+                "titleMeetings": []
+            }
+        else:
+            # --- Try multiple JSON extraction strategies ---
+
+            # Strategy 1: Direct JSON parsing
+            try:
+                result = json.loads(response_content)
+                logger.info(f"✅ Strategy 1 SUCCESS: Directly parsed JSON response")
+            except json.JSONDecodeError:
+                logger.info(f"⚠️ Strategy 1 FAILED: Direct JSON parsing")
+
+                # Strategy 2: Extract JSON from code blocks (```json...```)
+                json_from_codeblock = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_content, re.DOTALL)
+                if json_from_codeblock:
+                    try:
+                        result = json.loads(json_from_codeblock.group(1))
+                        logger.info(f"✅ Strategy 2 SUCCESS: Extracted JSON from code block")
+                    except json.JSONDecodeError:
+                        logger.info(f"⚠️ Strategy 2 FAILED: Code block extraction")
+
+                # Strategy 3: Extract JSON with balanced braces
+                if not result:
+                    json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response_content, re.DOTALL)
+                    if json_match:
+                        try:
+                            result = json.loads(json_match.group())
+                            logger.info(f"✅ Strategy 3 SUCCESS: Extracted JSON with balanced braces")
+                        except json.JSONDecodeError:
+                            logger.info(f"⚠️ Strategy 3 FAILED: Balanced braces extraction")
+
+                # Strategy 4: Create JSON from plain text response
+                if not result:
+                    logger.info(f"⚠️ All JSON extraction strategies failed. Using fallback text parsing.")
+                    # The response is likely plain text - wrap it in JSON
+                    # Try to extract meeting titles from the response
+                    answer_text = response_content.strip()
+
+                    # Extract potential meeting titles (usually in quotes or after specific patterns)
+                    title_matches = re.findall(r'["\']([^"\']*(?:Meeting|Cuộc họp|họp)[^"\']*)["\']', answer_text, re.IGNORECASE)
+
+                    # Also check meeting_details for any that might be in the answer
+                    titles_in_answer = []
+                    for detail in meeting_details:
+                        if detail['title'] in answer_text:
+                            titles_in_answer.append(detail['title'])
+
+                    result = {
+                        "answer": answer_text,
+                        "titleMeetings": titles_in_answer if titles_in_answer else title_matches[:3]
+                    }
+                    logger.info(f"✅ Strategy 4 SUCCESS: Created JSON from plain text response")
+                    logger.info(f"   Answer length: {len(answer_text)} chars")
+                    logger.info(f"   Extracted {len(result['titleMeetings'])} meeting titles")
+
+        print("result: " + str(result))
+        raw_answer = result.get("answer", "Xin lỗi, tôi không chắc cách trả lời câu hỏi đó.")
         # --- STEP 7: Validate answer grounding (hallucination detection) ---
         validation = validate_answer_grounding(
             answer=raw_answer,
@@ -1834,16 +2231,47 @@ def chatbot():
         chat_history.append({"role": "assistant", "content": formatted_answer})
         session["chat_history"] = chat_history[-20:]
 
-        # 🔥 CONTEXT TRACKING: Store the meeting(s) we just discussed for follow-up questions
-        if (date_filter or multi_date_filter) and len(search_results) > 0:
-            # Store the current focused meeting
+        # ⭐ IMPROVED CONTEXT TRACKING: Only update context on NEW SEARCHES, not follow-ups
+        # If this was a follow-up question with a date filter, DON'T update context
+        # because we want to maintain the context across follow-up questions
+        if len(search_results) > 0:
+            # Store the current focused meeting (the most relevant result)
             first_meeting = search_results[0]['metadata']
-            session["current_meeting_context"] = {
+            new_context = {
                 "date": first_meeting.get('date'),
                 "title": first_meeting.get('title', 'Unknown'),
                 "id": search_results[0]['id']
             }
-            logger.info(f"💾 Stored meeting context: {session['current_meeting_context']['date']} - {session['current_meeting_context']['title']}")
+
+            # Check if this is a NEW meeting (different from current context)
+            old_context = session.get("current_meeting_context", {})
+            is_new_meeting = (old_context.get('date') != new_context['date'] or
+                             not old_context.get('date'))  # First time or different date
+
+            # ⭐ CRITICAL FIX: Only update context on TRUE NEW SEARCHES, not follow-up questions
+            # - Don't update if this was a FOLLOW-UP question (is_followup_question == True)
+            # - Do update if this was a NEW SEARCH across meetings (is_followup_question == False)
+            # - Multi-meeting searches (is_context_query for multi_date_filter) are OK to update from
+            is_followup_question = query_intention.get("is_followup_question", False)
+            is_multi_meeting_with_filter = is_multi_meeting_search and multi_date_filter is not None
+
+            should_update_context = (
+                (not is_followup_question) or  # Update on new searches
+                is_multi_meeting_with_filter    # Update on multi-meeting queries
+            )
+
+            if should_update_context:
+                session["current_meeting_context"] = new_context
+
+                if is_new_meeting:
+                    logger.info(f"💾 ⭐ UPDATED meeting context to: {new_context['date']} - {new_context['title']}")
+                    if old_context.get('date'):
+                        logger.info(f"   (Changed from: {old_context['date']})")
+                else:
+                    logger.info(f"💾 Context remains: {new_context['date']} - {new_context['title']}")
+            else:
+                logger.info(f"💾 Context PRESERVED: {old_context.get('date', 'None')} (follow-up question, not updating)")
+                logger.info(f"   (First result was from {new_context['date']}, but keeping original context)")
 
             # 🔥 MULTI-MEETING TRACKING: Add ALL found meetings to discussed_meetings list
             if not is_multi_meeting_search:
@@ -1861,15 +2289,32 @@ def chatbot():
                     # Keep only last 5 meetings to avoid too much context
                     session["discussed_meetings"] = discussed_meetings_updated[-5:]
                     logger.info(f"📚 Added to discussed meetings list (now tracking {len(session['discussed_meetings'])} meetings)")
-        elif classification["type"] == "topic" and not date_filter and not multi_date_filter and len(search_results) == 0:
-            # If it was a topic query with no context and no results, clear the context
-            session.pop("current_meeting_context", None)
-            logger.info(f"🗑️ Cleared meeting context (no results)")
+        else:
+            # No results found
+            if classification["type"] == "topic" and not date_filter and not multi_date_filter:
+                # If it was a topic query with no context and no results, clear the context
+                session.pop("current_meeting_context", None)
+                logger.info(f"🗑️ Cleared meeting context (no results)")
+
+        titleMeetings = result["titleMeetings"] if "titleMeetings" in result else []
+        filtered_meetings = [m for m in meeting_details if m["title"] in titleMeetings]
+        print("filtered_meetings: " + str(filtered_meetings))
 
         return jsonify({
             "answer": formatted_answer,
             "classification": classification,
-            "meetings": meeting_details,
+            # ⭐ NEW: Query Intention Classification
+            "query_intention": {
+                "type": query_intention["intention_type"],
+                "confidence": query_intention["confidence"],
+                "reasoning": query_intention["reasoning"],
+                "extracted_entities": {
+                    "people": query_intention["extracted_entities"]["people"],
+                    "keywords": query_intention["extracted_entities"]["keywords"]
+                },
+                "metadata_filters_applied": query_intention["should_filter_metadata"]
+            },
+            "meetings": filtered_meetings,
             "count": len(search_results),
             "validation": {
                 "is_grounded": validation.get("is_grounded", True),
@@ -1879,7 +2324,7 @@ def chatbot():
                 "semantic_results": len(search_results),
                 "final": len(search_results),
                 "context_tokens": context_tokens,
-                "search_type": "semantic_only"
+                "search_type": "semantic_with_intention_filtering"
             },
             "context_used": is_context_query,  # Indicate if we used conversation context
             "multi_meeting_search": is_multi_meeting_search,  # Indicate if searching across multiple meetings
