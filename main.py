@@ -708,7 +708,7 @@ def save_summary_to_chromadb(
         if duration_info.get("start_time"):
             logger.info(f"  🕐 Time: {duration_info['start_time']} - {duration_info['end_time']}")
         logger.info(f"  📝 Individual actions ({len(individual_actions)}):")
-        for action in individual_actions[:5]:  # Show first 5 actions
+        for action in individual_actions: 
             logger.info(f"      • {action['person']}: {action['action'][:60]}...")
 
         # Add document to collection
@@ -968,7 +968,7 @@ def classify_query_intention(
 
         # Extract entities
         extracted_entities = {
-            "people": potential_names[:5],  # Limit to first 5
+            "people": potential_names, 
             "keywords": [],
             "time_keywords": [kw for kw in time_keywords if kw in question_lower],
             "comparison_keywords": [kw for kw in comparison_keywords if kw in question_lower],
@@ -1633,6 +1633,13 @@ def chatbot():
         chat_history = session.get("chat_history", [])
         current_meeting_context = session.get("current_meeting_context", None)  # Track focused meeting
         discussed_meetings = session.get("discussed_meetings", [])  # Track ALL discussed meetings
+        context_was_just_updated = session.get("context_was_just_updated", False)  # ⭐ NEW: Track if context was updated from PREVIOUS query
+
+        # ⭐ DEBUG: Log current session context
+        logger.info(f"🔍 SESSION STATE at start of Q/A:")
+        logger.info(f"   - current_meeting_context: {current_meeting_context}")
+        logger.info(f"   - context_was_just_updated: {context_was_just_updated}")
+        logger.info(f"   - discussed_meetings count: {len(discussed_meetings)}")
 
         # --- STEP 0: Extract conversation context ---
         # Detect if user is asking about MULTIPLE meetings (each/all/both)
@@ -1653,6 +1660,14 @@ def chatbot():
         # --- STEP 1: Classify question ---
         logger.info(f"📥 Received question: '{question}'")
         logger.info(f"📦 Current session context: {session.get('current_meeting_context', {})}")
+
+        # ⭐ SPECIAL HANDLING: Detect general/statistics questions that shouldn't use context filter
+        general_keywords = [
+            'bao nhiêu', 'how many', 'tất cả', 'all', 'tổng', 'total',
+            'danh sách', 'list', 'các cuộc họp', 'meetings', 'tất cả các cuộc họp'
+        ]
+        is_general_question = any(kw in question.lower() for kw in general_keywords)
+        logger.info(f"🔎 Is general/statistics question: {is_general_question}")
 
         now = datetime.now()
         year = now.year
@@ -1738,15 +1753,25 @@ def chatbot():
         # ⭐ IMPROVED CONTEXT-AWARE: Only apply date filter for TRUE follow-up questions, NOT for search queries
         # A follow-up question asks about the SAME meeting (e.g., "có những ai", "làm gì")
         # A search query asks across meetings (e.g., "meeting nào đề cập X", "cuộc họp nào nói về Y")
+        # ⭐ CRITICAL FIX: Always use CURRENT context for follow-ups (whether it was just updated or not)
+        # ⭐ NEW: Skip context for general/statistics questions (e.g., "Bao nhiêu cuộc họp", "Danh sách tất cả")
         elif (classification["type"] == "topic" and
               current_meeting_context and
               date_filter is None and
-              query_intention.get("is_followup_question", False)):  # ⭐ NEW: Check if it's a follow-up
-            # This is a FOLLOW-UP question about the same meeting
+              query_intention.get("is_followup_question", False) and
+              not is_general_question):  # ⭐ NEW: Don't use context for general questions
+            # This is a FOLLOW-UP question about the CURRENT meeting
+            # Always use the current_meeting_context, regardless of when it was last updated
             date_filter = current_meeting_context['date']
             is_context_query = True
-            logger.info(f"💡 Context-aware query (FOLLOW-UP): Using previous meeting date '{date_filter}' for follow-up question")
+            logger.info(f"💡 Context-aware query (FOLLOW-UP): Using current meeting date '{date_filter}' for follow-up question")
             logger.info(f"   Context meeting: {current_meeting_context.get('title', 'Unknown')} ({current_meeting_context.get('date')})")
+            logger.info(f"   Context was last updated in previous query: {context_was_just_updated}")
+        elif is_general_question:
+            # ⭐ NEW: General/statistics question - search ALL meetings, ignore context
+            logger.info(f"📊 General/statistics question detected: Searching across ALL meetings (no context filter)")
+            is_context_query = False
+            date_filter = None
         elif classification["type"] == "topic" and date_filter is None and not query_intention.get("is_followup_question", False):
             # This is a NEW SEARCH query - search across ALL meetings, not just the current one
             logger.info(f"🔍 NEW SEARCH query detected: Searching across ALL meetings (not limited to '{current_meeting_context['date'] if current_meeting_context else 'N/A'}')")
@@ -1861,12 +1886,15 @@ def chatbot():
                     else:
                         logger.info(f"   Result {i+1}: distance={distance:.4f} (filtered out - {filter_reason})")
 
-            logger.info(f"🔍 Semantic search returned {len(search_results)} results")
+            logger.info(f"🔍 Semantic search returned {len(search_results)} results (after intention-based filtering)")
+            logger.info(f"   Raw semantic_results count: {len(semantic_results['documents'][0]) if semantic_results and semantic_results['documents'] and semantic_results['documents'][0] else 0}")
 
             # ⭐ CRITICAL FIX: If this is a follow-up question with context, FORCE results to stay within context meeting
+            # BUT: Don't filter if it's a general/statistics question (is_general_question) or a new search
             if (query_intention.get("is_followup_question", False) and
                 current_meeting_context and
-                len(search_results) > 0):
+                len(search_results) > 0 and
+                not is_general_question):  # ⭐ NEW: Don't filter general questions
                 context_date = current_meeting_context['date']
                 results_in_context = [r for r in search_results if r['metadata'].get('date') == context_date]
 
@@ -1876,11 +1904,15 @@ def chatbot():
                     search_results = results_in_context
                 else:
                     logger.warning(f"⚠️ FOLLOW-UP: No results found in context meeting ({context_date})")
+                    logger.warning(f"   Context meeting: {current_meeting_context.get('title')} ({context_date})")
                     logger.warning(f"   Keeping broader search results from {[r['metadata'].get('date') for r in search_results]}")
+                    logger.warning(f"   Note: If you want to search across all meetings, ask a NEW SEARCH question instead")
+            elif is_general_question:
+                logger.info(f"📊 GENERAL QUESTION: NOT filtering results by context - using all {len(search_results)} results")
 
             if len(search_results) > 0:
                 logger.info(f"📊 Top results (after context filtering):")
-                for i, result in enumerate(search_results[:5]):
+                for i, result in enumerate(search_results):
                     logger.info(f"   {i+1}. Date: {result.get('metadata', {}).get('date', 'N/A')}, Title: {result.get('metadata', {}).get('title', 'N/A')[:50]}..., Distance: {result.get('distance', 'N/A'):.4f}")
             else:
                 logger.warning(f"⚠️ Semantic search returned 0 results. This might indicate:")
@@ -1910,7 +1942,7 @@ def chatbot():
         if search_results:
             context = "📋 Relevant Meeting Information:\n\n"
 
-            for idx, result in enumerate(search_results[:5]):  # Limit to top 5 results to avoid token overflow
+            for idx, result in enumerate(search_results):
                 meta = result["metadata"]
                 summary = result['summary']
 
@@ -2027,6 +2059,8 @@ def chatbot():
 0. **PHÂN LOẠI INTENT CỦA CÂUHỎI (CẢI TIẾN MỚI):**{intention_guidance}
    - Confidence level: {query_intention['confidence']:.2f}/1.0
    - Reasoning: {query_intention['reasoning']}
+
+   {'⭐ SPECIAL INSTRUCTION: Đây là một câu hỏi thống kê/tổng quan - hãy trả lời dựa trên TẤT CẢ các cuộc họp trong context, không chỉ một cuộc họp cụ thể.' if is_general_question else ''}
 
 1. **Sử dụng metadata mới (CẢI TIẾN):**
 
@@ -2212,7 +2246,8 @@ Nếu bạn muốn, bạn có thể sử dụng JSON format sau để giúp tổ
                     logger.info(f"   Answer length: {len(answer_text)} chars")
                     logger.info(f"   Extracted {len(result['titleMeetings'])} meeting titles")
 
-        print("result: " + str(result))
+        # ⭐ FIXED: Removed print statement that caused UnicodeEncodeError with Vietnamese text
+        # print("result: " + str(result))
         raw_answer = result.get("answer", "Xin lỗi, tôi không chắc cách trả lời câu hỏi đó.")
         # --- STEP 7: Validate answer grounding (hallucination detection) ---
         validation = validate_answer_grounding(
@@ -2260,8 +2295,20 @@ Nếu bạn muốn, bạn có thể sử dụng JSON format sau để giúp tổ
                 is_multi_meeting_with_filter    # Update on multi-meeting queries
             )
 
+            # ⭐ DEBUG: Log context update decision
+            logger.info(f"📋 Context update decision:")
+            logger.info(f"   - is_followup_question={is_followup_question}")
+            logger.info(f"   - is_multi_meeting_with_filter={is_multi_meeting_with_filter}")
+            logger.info(f"   - should_update_context={should_update_context}")
+            logger.info(f"   - Old context: {old_context.get('date', 'None')}")
+            logger.info(f"   - New context from search (top result): {new_context['date']}")
+            logger.info(f"   - Top result relevance score: {search_results[0].get('distance', 'N/A') if search_results else 'N/A'}")
+            if len(search_results) > 1:
+                logger.info(f"   - Second result: {search_results[1]['metadata'].get('date')} (relevance: {search_results[1].get('distance', 'N/A')})")
+
             if should_update_context:
                 session["current_meeting_context"] = new_context
+                session["context_was_just_updated"] = True  # ⭐ NEW: Mark that context was just updated
 
                 if is_new_meeting:
                     logger.info(f"💾 ⭐ UPDATED meeting context to: {new_context['date']} - {new_context['title']}")
@@ -2270,6 +2317,7 @@ Nếu bạn muốn, bạn có thể sử dụng JSON format sau để giúp tổ
                 else:
                     logger.info(f"💾 Context remains: {new_context['date']} - {new_context['title']}")
             else:
+                session["context_was_just_updated"] = False  # ⭐ NEW: Mark that context was NOT updated (follow-up)
                 logger.info(f"💾 Context PRESERVED: {old_context.get('date', 'None')} (follow-up question, not updating)")
                 logger.info(f"   (First result was from {new_context['date']}, but keeping original context)")
 
@@ -2298,7 +2346,8 @@ Nếu bạn muốn, bạn có thể sử dụng JSON format sau để giúp tổ
 
         titleMeetings = result["titleMeetings"] if "titleMeetings" in result else []
         filtered_meetings = [m for m in meeting_details if m["title"] in titleMeetings]
-        print("filtered_meetings: " + str(filtered_meetings))
+        # ⭐ FIXED: Removed print statement that caused UnicodeEncodeError
+        # print("filtered_meetings: " + str(filtered_meetings))
 
         return jsonify({
             "answer": formatted_answer,
@@ -2335,7 +2384,22 @@ Nếu bạn muốn, bạn có thể sử dụng JSON format sau để giúp tổ
     except Exception as e:
         logger.error(f"Error in chatbot: {e}", exc_info=True)
         return jsonify({"error": "Failed to process question"}), 500
-    
+
+@app.route("/clear_session", methods=["POST"])
+def clear_session_data():
+    """Clear session data (chat history, context, discussed meetings)"""
+    try:
+        logger.info("🗑️ Clearing session data...")
+        session.clear()
+        logger.info("✅ Session cleared successfully")
+        return jsonify({
+            "success": True,
+            "message": "Session cleared. Ready for fresh conversation."
+        })
+    except Exception as e:
+        logger.error(f"Error clearing session: {e}")
+        return jsonify({"error": "Failed to clear session"}), 500
+
 @app.route("/list_meetings", methods=["GET"])
 def list_meetings():
     """List all available meeting summaries from ChromaDB"""
@@ -2486,4 +2550,4 @@ def internal_server_error(error):
 # -------- MAIN --------
 if __name__ == "__main__":
     ensure_directories()
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5002)
