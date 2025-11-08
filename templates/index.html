@@ -1,299 +1,316 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tóm tắt cuộc họp</title>
+    <title>Trợ lý Tóm tắt Cuộc họp AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link
       rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@2.3.8/dist/purify.min.js"></script>
   </head>
   <body>
-    <div class="container">
+    <div class="main-container">
       <header>
         <div class="logo">
-          <i class="fas fa-file-alt"></i>
+          <i class="fa-solid fa-robot"></i>
           <div>
-            <h1>Tóm tắt Cuộc họp</h1>
-            <p class="tagline">Công cụ AI thông minh</p>
+            <h1>Trợ lý Cuộc họp</h1>
+            <p class="tagline">Tóm tắt và Hỏi đáp với AI</p>
           </div>
+        </div>
+        <div class="theme-switcher">
+          <i class="fas fa-sun"></i>
+          <label class="switch">
+            <input type="checkbox" id="theme-toggle" />
+            <span class="slider round"></span>
+          </label>
+          <i class="fas fa-moon"></i>
         </div>
       </header>
 
-      <!-- Upload Area -->
-      <div class="upload-container">
-        <div class="upload-area" id="upload-area">
-          <i class="fas fa-cloud-upload-alt"></i>
-          <p><strong>Kéo thả file vào đây</strong> hoặc click để chọn</p>
-          <label class="custom-file-upload" for="meeting_file">
-            <i class="fas fa-folder-open"></i> Chọn file
-          </label>
-          <input
-            id="meeting_file"
-            name="meeting_file"
-            type="file"
-            accept=".txt,.docx,.pdf,.mp3,.wav,.m4a"
-          />
-          <div class="file-info">
-            Hỗ trợ: TXT, DOCX, PDF, MP3, WAV, M4A (Tối đa 100MB)
-          </div>
-          <div class="selected-file" id="file-name">
-            <i class="fas fa-file"></i>
-            <span id="file-name-text"></span>
-            <i
-              class="fas fa-check-circle"
-              style="color: #4caf50; margin-left: 8px"
-            ></i>
-          </div>
-        </div>
-        <button id="upload-btn" class="action-button" type="button">
-          <i class="fas fa-upload"></i> Tải lên
-        </button>
-        <div id="upload-status" class="upload-status">
-          <i class="fas fa-check-circle"></i>
-          <span id="upload-status-text">
-            Đã tải lên: <strong id="uploaded-filename"></strong>
-          </span>
-        </div>
-      </div>
-
-      <!-- Content Display -->
-      <div class="content-container">
-        <div class="content-box">
-          <div class="content-header">
-            <h2><i class="fas fa-file-text"></i> Nội dung gốc</h2>
-            <button id="summarize-btn" class="action-button" type="button">
-              <i class="fas fa-magic"></i> Tạo bản tóm tắt
-            </button>
-          </div>
-          <div class="content-body">
-            <pre id="original-text" class="content-pre">
-Chưa có nội dung. Vui lòng tải lên file.</pre
-            >
-          </div>
-        </div>
-
-        <!-- Summary Section -->
-        <div class="content-box">
-          <div class="content-header">
-            <h2><i class="fas fa-list-check"></i> Bản tóm tắt</h2>
-            <div class="header-actions">
-              <button id="edit-summary-btn" class="action-button secondary">
-                <i class="fas fa-edit"></i> Chỉnh sửa
-              </button>
-              <button id="save-summary-btn" class="action-button success">
-                <i class="fas fa-save"></i> Lưu bản tóm tắt
+      <main class="content-grid">
+        <!-- Left Column: Upload and Original Text -->
+        <div class="column-left">
+          <!-- Upload Area -->
+          <div class="card upload-container">
+            <div class="upload-area" id="upload-area">
+              <div class="upload-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+              </div>
+              <p><strong>Kéo thả file vào đây</strong> hoặc click để chọn</p>
+              <div class="file-info">
+                Hỗ trợ: TXT, DOCX, PDF, MP3, WAV, M4A (Tối đa 100MB)
+              </div>
+              <div class="selected-file" id="file-name">
+                <i class="fas fa-file"></i>
+                <span id="file-name-text"></span>
+                <i class="fas fa-check-circle"></i>
+              </div>
+            </div>
+            <div class="upload-actions">
+              <label class="button secondary" for="meeting_file">
+                <i class="fas fa-folder-open"></i> Chọn file
+              </label>
+              <input
+                id="meeting_file"
+                name="meeting_file"
+                type="file"
+                accept=".txt,.docx,.pdf,.mp3,.wav,.m4a"
+              />
+              <button id="upload-btn" class="button primary" type="button">
+                <i class="fas fa-upload"></i> Tải lên & Xử lý
               </button>
             </div>
+            <div id="upload-status" class="upload-status">
+              <i class="fas fa-check-circle"></i>
+              <span id="upload-status-text"
+                >Đã tải lên: <strong id="uploaded-filename"></strong
+              ></span>
+            </div>
           </div>
-          <div class="content-body">
-            <div id="summary-display" class="summary-display">
-              <pre id="summary-text" class="content-pre">
-Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
+
+          <!-- Content Display -->
+          <div class="card content-box">
+            <div class="card-header">
+              <h2><i class="fas fa-file-alt"></i> Nội dung gốc</h2>
+              <button id="summarize-btn" class="button primary" type="button">
+                <i class="fas fa-wand-magic-sparkles"></i> Tạo Tóm tắt
+              </button>
+            </div>
+            <div class="card-body">
+              <pre id="original-text" class="content-pre">
+Chưa có nội dung. Vui lòng tải lên một file để bắt đầu.</pre
               >
             </div>
-            <div id="summary-editor" class="summary-editor">
-              <div class="editor-field">
-                <label for="meeting-title">
-                  <i class="fas fa-heading"></i> Tiêu đề cuộc họp:
-                </label>
-                <input
-                  type="text"
-                  id="meeting-title"
-                  class="form-input"
-                  placeholder="Nhập tiêu đề cuộc họp..."
-                />
-              </div>
-              <div class="editor-field">
-                <label for="meeting-date">
-                  <i class="fas fa-calendar"></i> Ngày:
-                </label>
-                <input type="date" id="meeting-date" class="form-input" />
-              </div>
-              <div class="editor-field">
-                <label for="summary-content">
-                  <i class="fas fa-file-alt"></i> Nội dung tóm tắt:
-                </label>
-                <textarea
-                  id="summary-content"
-                  class="form-textarea"
-                  rows="15"
-                  placeholder="Chỉnh sửa nội dung tóm tắt..."
-                ></textarea>
-              </div>
-              <div class="editor-actions">
-                <button id="cancel-edit-btn" class="action-button secondary">
-                  <i class="fas fa-times"></i> Hủy
+          </div>
+        </div>
+
+        <!-- Right Column: Summary -->
+        <div class="column-right">
+          <!-- Summary Section -->
+          <div class="card content-box">
+            <div class="card-header">
+              <h2><i class="fas fa-list-check"></i> Bản tóm tắt</h2>
+              <div class="header-actions">
+                <button id="edit-summary-btn" class="button secondary">
+                  <i class="fas fa-edit"></i> Chỉnh sửa
                 </button>
-                <button id="apply-edit-btn" class="action-button">
-                  <i class="fas fa-check"></i> Áp dụng
+                <button id="save-summary-btn" class="button success">
+                  <i class="fas fa-save"></i> Lưu
                 </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div id="summary-display" class="summary-display">
+                <pre id="summary-text" class="content-pre">
+Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
+                >
+              </div>
+              <div id="summary-editor" class="summary-editor">
+                <div class="editor-field">
+                  <label for="meeting-title"
+                    ><i class="fas fa-heading"></i> Tiêu đề cuộc họp:</label
+                  >
+                  <input
+                    type="text"
+                    id="meeting-title"
+                    class="form-input"
+                    placeholder="Nhập tiêu đề cuộc họp..."
+                  />
+                </div>
+                <div class="editor-field">
+                  <label for="meeting-date"
+                    ><i class="fas fa-calendar"></i> Ngày:</label
+                  >
+                  <input type="date" id="meeting-date" class="form-input" />
+                </div>
+                <div class="editor-field">
+                  <label for="summary-content"
+                    ><i class="fas fa-file-alt"></i> Nội dung tóm tắt:</label
+                  >
+                  <textarea
+                    id="summary-content"
+                    class="form-textarea"
+                    rows="15"
+                    placeholder="Chỉnh sửa nội dung tóm tắt..."
+                  ></textarea>
+                </div>
+                <div class="editor-actions">
+                  <button id="cancel-edit-btn" class="button secondary">
+                    <i class="fas fa-times"></i> Hủy
+                  </button>
+                  <button id="apply-edit-btn" class="button primary">
+                    <i class="fas fa-check"></i> Áp dụng
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Loading Overlay -->
-      <div id="loading" class="loading-overlay">
-        <div class="loading-spinner"></div>
-        <p>Đang xử lý...</p>
-      </div>
+      </main>
 
       <footer>
-        <p>© 2025 Công cụ Tóm tắt Cuộc họp | Được hỗ trợ bởi AI</p>
+        <p>© 2025 Trợ lý Cuộc họp AI. All rights reserved.</p>
       </footer>
     </div>
 
     <!-- Floating Buttons -->
     <div class="floating-buttons">
-      <!-- Data Management Button -->
-      <button id="data-manager-toggle" class="data-manager-btn" aria-label="Quản lý dữ liệu" title="Quản lý dữ liệu ChromaDB">
+      <button
+        id="data-manager-toggle"
+        class="floating-btn"
+        aria-label="Quản lý dữ liệu"
+        title="Quản lý dữ liệu ChromaDB"
+      >
         <i class="fas fa-database"></i>
       </button>
-
-      <!-- Library Button -->
-      <button id="library-toggle" class="library-btn" aria-label="Mở thư viện cuộc họp" title="Thư viện cuộc họp">
+      <button
+        id="library-toggle"
+        class="floating-btn"
+        aria-label="Mở thư viện cuộc họp"
+        title="Thư viện cuộc họp"
+      >
         <i class="fas fa-folder-open"></i>
-        <span class="library-count" id="library-count">0</span>
+        <span class="floating-badge" id="library-count">0</span>
       </button>
-
-      <!-- Chatbot Button -->
       <div id="chat-bubble" class="chat-bubble">
-        <button id="chat-toggle" class="chat-btn" aria-label="Mở trợ lý AI">
+        <button
+          id="chat-toggle"
+          class="floating-btn primary"
+          aria-label="Mở trợ lý AI"
+        >
           <i class="fas fa-comments"></i>
-          <span class="chat-badge" id="chat-badge">1</span>
+          <span class="floating-badge" id="chat-badge">1</span>
         </button>
       </div>
     </div>
 
     <!-- Chat Panel -->
-      <div id="chat-panel" class="chat-panel">
-        <div class="chat-header">
-          <div class="chat-header-content">
-            <div class="chat-avatar">
-              <i class="fas fa-robot"></i>
-            </div>
-            <div>
-              <h3>Trợ lý Cuộc họp</h3>
-              <span class="chat-status">
-                <span class="status-dot"></span> Đang hoạt động
-              </span>
-            </div>
+    <div id="chat-panel" class="chat-panel">
+      <div class="chat-header">
+        <div class="chat-header-content">
+          <div class="chat-avatar"><i class="fas fa-robot"></i></div>
+          <div>
+            <h3>Trợ lý Cuộc họp</h3>
+            <span class="chat-status"
+              ><span class="status-dot"></span> Đang hoạt động</span
+            >
           </div>
-          <button id="chat-close" class="chat-close-btn" aria-label="Đóng chat">
-            <i class="fas fa-times"></i>
+        </div>
+        <button id="chat-close" class="chat-close-btn" aria-label="Đóng chat">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div id="chat-messages" class="chat-messages">
+        <!-- Initial message will be loaded dynamically -->
+      </div>
+      <div class="chat-input-container">
+        <div class="chat-suggestions" id="chat-suggestions">
+          <button
+            class="suggestion-chip"
+            data-question="Cuộc họp này bàn về gì?"
+          >
+            Cuộc họp này bàn về gì?
+          </button>
+          <button
+            class="suggestion-chip"
+            data-question="Những quyết định quan trọng là gì?"
+          >
+            Quyết định quan trọng
+          </button>
+          <button
+            class="suggestion-chip"
+            data-question="Có công việc nào cần làm không?"
+          >
+            Công việc cần làm
+          </button>
+          <button class="suggestion-chip" id="list-meetings-btn">
+            📅 Xem danh sách cuộc họp
           </button>
         </div>
-
-        <div id="chat-messages" class="chat-messages">
-          <!-- Initial message will be loaded dynamically -->
-        </div>
-
-        <div class="chat-input-container">
-          <form id="chat-form" class="chat-form">
-            <input
-              id="chat-input"
-              type="text"
-              placeholder="Hỏi về cuộc họp..."
-              autocomplete="off"
-              maxlength="500"
-            />
-            <button
-              type="submit"
-              class="chat-send-btn"
-              aria-label="Gửi tin nhắn"
-            >
-              <i class="fas fa-paper-plane"></i>
-            </button>
-          </form>
-          <div class="chat-suggestions" id="chat-suggestions">
-            <button
-              class="suggestion-chip"
-              data-question="Cuộc họp này bàn về gì?"
-            >
-              Cuộc họp này bàn về gì?
-            </button>
-            <button
-              class="suggestion-chip"
-              data-question="Những quyết định quan trọng là gì?"
-            >
-              Quyết định quan trọng
-            </button>
-            <button
-              class="suggestion-chip"
-              data-question="Có công việc nào cần làm không?"
-            >
-              Công việc cần làm
-            </button>
-            <button class="suggestion-chip" id="list-meetings-btn">
-              📅 Xem danh sách cuộc họp
-            </button>
-          </div>
-        </div>
+        <form id="chat-form" class="chat-form">
+          <input
+            id="chat-input"
+            type="text"
+            placeholder="Hỏi trợ lý AI về cuộc họp..."
+            autocomplete="off"
+            maxlength="500"
+          />
+          <button type="submit" class="chat-send-btn" aria-label="Gửi tin nhắn">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </form>
       </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div id="toast" class="toast"></div>
-
     <!-- Library Modal -->
-    <div id="library-sidebar" class="library-sidebar">
-      <div class="library-modal-container">
-        <div class="library-header">
-          <div class="library-header-content">
-            <h2><i class="fas fa-books"></i> Thư viện cuộc họp</h2>
+    <div id="library-sidebar" class="modal-backdrop">
+      <div class="modal-container library-modal">
+        <div class="modal-header">
+          <div class="modal-header-content">
+            <h2><i class="fas fa-book-bookmark"></i> Thư viện cuộc họp</h2>
             <p id="library-subtitle">Đang tải...</p>
           </div>
-          <button class="library-close-btn" id="library-close-btn">
+          <button class="modal-close-btn" id="library-close-btn">
             <i class="fas fa-times"></i>
           </button>
         </div>
-
-        <!-- Search Bar -->
-        <div class="library-search">
+        <div class="modal-toolbar">
           <div class="search-input-wrapper">
             <i class="fas fa-search"></i>
             <input
               type="text"
-              class="library-search-input"
+              class="form-input"
               id="library-search-input"
-              placeholder="Tìm kiếm cuộc họp..."
+              placeholder="Tìm kiếm theo tiêu đề, ngày, tên file..."
             />
           </div>
+          <div class="library-filters" id="library-filters">
+            <button class="filter-chip active" data-filter="all">
+              <i class="fas fa-grip"></i> Tất cả
+            </button>
+            <button class="filter-chip" data-filter="recent">
+              <i class="fas fa-clock-rotate-left"></i> Gần đây
+            </button>
+            <button class="filter-chip" data-filter="thisweek">
+              <i class="fas fa-calendar-week"></i> Tuần này
+            </button>
+            <button class="filter-chip" data-filter="thismonth">
+              <i class="fas fa-calendar-alt"></i> Tháng này
+            </button>
+          </div>
         </div>
-
-        <!-- Filters -->
-        <div class="library-filters" id="library-filters">
-          <button class="filter-chip active" data-filter="all">
-            <i class="fas fa-th"></i> Tất cả
-          </button>
-          <button class="filter-chip" data-filter="recent">
-            <i class="fas fa-clock"></i> Gần đây
-          </button>
-          <button class="filter-chip" data-filter="thisweek">
-            <i class="fas fa-calendar-week"></i> Tuần này
-          </button>
-          <button class="filter-chip" data-filter="thismonth">
-            <i class="fas fa-calendar-alt"></i> Tháng này
-          </button>
-        </div>
-
-        <!-- Content -->
-        <div class="library-content" id="library-content">
+        <div class="modal-body" id="library-content">
           <!-- Meeting cards will be dynamically loaded here -->
         </div>
       </div>
     </div>
 
     <!-- Meeting Detail Modal -->
-    <div id="meeting-modal" class="meeting-modal">
-      <div class="meeting-modal-content">
-        <div class="meeting-modal-header">
-          <div class="meeting-modal-header-content">
-            <h2 class="meeting-modal-title" id="modal-meeting-title">Meeting Title</h2>
+    <div id="meeting-modal" class="modal-backdrop">
+      <div class="modal-container meeting-detail-modal">
+        <div class="modal-header">
+          <div class="modal-header-content">
+            <h2 class="meeting-modal-title" id="modal-meeting-title">
+              Meeting Title
+            </h2>
             <div class="meeting-modal-meta">
               <div class="meeting-modal-meta-item">
                 <i class="fas fa-calendar"></i>
@@ -305,180 +322,223 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
               </div>
             </div>
           </div>
-          <button class="meeting-modal-close" id="modal-close-btn">
+          <button class="modal-close-btn" id="modal-close-btn">
             <i class="fas fa-times"></i>
           </button>
         </div>
-        <div class="meeting-modal-body" id="modal-meeting-content">
+        <div class="modal-body" id="modal-meeting-content">
           <!-- Meeting content will be loaded here -->
         </div>
-        <div class="meeting-modal-footer">
-          <div style="flex: 1; display: flex; gap: 8px;">
-            <button class="modal-btn modal-btn-icon" id="modal-export-btn" title="Xuất file TXT">
-              <i class="fas fa-download"></i>
-              Xuất file
+        <div class="modal-footer">
+          <div style="flex: 1; display: flex; gap: 8px">
+            <button
+              class="button success"
+              id="modal-export-btn"
+              title="Xuất file TXT"
+            >
+              <i class="fas fa-download"></i> Xuất file
             </button>
-            <button class="modal-btn modal-btn-warning" id="modal-copy-btn" title="Sao chép nội dung">
-              <i class="fas fa-copy"></i>
-              Sao chép
+            <button
+              class="button warning"
+              id="modal-copy-btn"
+              title="Sao chép nội dung"
+            >
+              <i class="fas fa-copy"></i> Sao chép
             </button>
           </div>
-          <button class="modal-btn modal-btn-secondary" id="modal-close-footer-btn">
-            <i class="fas fa-times"></i>
-            Đóng
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Data Management Modal -->
-    <div id="data-manager-modal" class="data-manager-modal">
-      <div class="data-manager-container">
-        <div class="data-manager-header">
-          <div>
-            <h2><i class="fas fa-database"></i> Quản lý Dữ liệu ChromaDB</h2>
-            <p id="data-manager-subtitle">Tổng số: <span id="total-docs">0</span> tài liệu</p>
-          </div>
-          <button class="data-manager-close-btn" id="data-manager-close">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-
-        <div class="data-manager-toolbar">
-          <div class="search-bar">
-            <i class="fas fa-search"></i>
-            <input type="text" id="data-search" placeholder="Tìm kiếm theo ID, tiêu đề, hoặc ngày...">
-          </div>
-          <button class="btn-refresh" id="data-refresh">
-            <i class="fas fa-sync-alt"></i> Làm mới
-          </button>
-        </div>
-
-        <div class="data-manager-content" id="data-manager-content">
-          <!-- Data rows will be loaded here -->
-        </div>
-      </div>
-    </div>
-
-    <!-- Data Detail Modal -->
-    <div id="data-detail-modal" class="data-detail-modal">
-      <div class="data-detail-container">
-        <div class="data-detail-header">
-          <h3><i class="fas fa-info-circle"></i> Chi tiết Tài liệu</h3>
-          <button class="data-detail-close" id="data-detail-close">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        <div class="data-detail-body" id="data-detail-body">
-          <!-- Details will be loaded here -->
-        </div>
-        <div class="data-detail-footer">
-          <button class="btn-danger" id="btn-delete-doc">
-            <i class="fas fa-trash"></i> Xóa tài liệu
-          </button>
-          <button class="btn-secondary" id="btn-close-detail">
+          <button class="button secondary" id="modal-close-footer-btn">
             <i class="fas fa-times"></i> Đóng
           </button>
         </div>
       </div>
     </div>
 
+    <!-- Data Management Modal -->
+    <div id="data-manager-modal" class="modal-backdrop">
+      <div class="modal-container data-manager-modal">
+        <div class="modal-header">
+          <div>
+            <h2><i class="fas fa-database"></i> Quản lý Dữ liệu ChromaDB</h2>
+            <p id="data-manager-subtitle">
+              Tổng số: <span id="total-docs">0</span> tài liệu
+            </p>
+          </div>
+          <button class="modal-close-btn" id="data-manager-close">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-toolbar">
+          <div class="search-input-wrapper">
+            <i class="fas fa-search"></i>
+            <input
+              type="text"
+              id="data-search"
+              class="form-input"
+              placeholder="Tìm kiếm theo ID, tiêu đề, hoặc ngày..."
+            />
+          </div>
+          <button class="button secondary" id="data-refresh">
+            <i class="fas fa-sync-alt"></i> Làm mới
+          </button>
+        </div>
+        <div class="modal-body" id="data-manager-content">
+          <!-- Data rows will be loaded here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Detail Modal -->
+    <div id="data-detail-modal" class="modal-backdrop">
+      <div class="modal-container data-detail-modal">
+        <div class="modal-header">
+          <h3><i class="fas fa-info-circle"></i> Chi tiết Tài liệu</h3>
+          <button class="modal-close-btn" id="data-detail-close">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-toolbar">
+          <div class="theme-switcher">
+            <span>Nội dung gốc</span>
+            <label class="switch">
+              <input type="checkbox" id="markdown-toggle" />
+              <span class="slider round"></span>
+            </label>
+            <span>Xem trước Markdown</span>
+          </div>
+        </div>
+        <div class="modal-body" id="data-detail-body">
+          <!-- Details will be loaded here -->
+        </div>
+        <div class="modal-footer">
+          <button class="button danger" id="btn-delete-doc">
+            <i class="fas fa-trash"></i> Xóa tài liệu
+          </button>
+          <button class="button secondary" id="btn-close-detail">
+            <i class="fas fa-times"></i> Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading" class="loading-overlay">
+      <div class="loading-spinner"></div>
+      <p>Đang xử lý...</p>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
     <script>
+      // Add theme switcher logic
+      const themeToggle = document.getElementById('theme-toggle');
+      themeToggle.addEventListener('change', () => {
+        if (themeToggle.checked) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.classList.remove('light');
+        } else {
+          document.documentElement.classList.add('light');
+          document.documentElement.classList.remove('dark');
+        }
+      });
+
       // DOM Elements
-      const uploadBtn = document.getElementById("upload-btn");
-      const fileInput = document.getElementById("meeting_file");
-      const uploadArea = document.getElementById("upload-area");
-      const originalText = document.getElementById("original-text");
-      const summaryText = document.getElementById("summary-text");
-      const summarizeBtn = document.getElementById("summarize-btn");
-      const fileName = document.getElementById("file-name");
-      const fileNameText = document.getElementById("file-name-text");
-      const uploadStatus = document.getElementById("upload-status");
-      const uploadedFilename = document.getElementById("uploaded-filename");
-      const loading = document.getElementById("loading");
+      const uploadBtn = document.getElementById('upload-btn');
+      const fileInput = document.getElementById('meeting_file');
+      const uploadArea = document.getElementById('upload-area');
+      const originalText = document.getElementById('original-text');
+      const summaryText = document.getElementById('summary-text');
+      const summarizeBtn = document.getElementById('summarize-btn');
+      const fileName = document.getElementById('file-name');
+      const fileNameText = document.getElementById('file-name-text');
+      const uploadStatus = document.getElementById('upload-status');
+      const uploadedFilename = document.getElementById('uploaded-filename');
+      const loading = document.getElementById('loading');
 
       // Summary editing elements
-      const summaryDisplay = document.getElementById("summary-display");
-      const summaryEditor = document.getElementById("summary-editor");
-      const editSummaryBtn = document.getElementById("edit-summary-btn");
-      const saveSummaryBtn = document.getElementById("save-summary-btn");
-      const cancelEditBtn = document.getElementById("cancel-edit-btn");
-      const applyEditBtn = document.getElementById("apply-edit-btn");
-      const meetingTitle = document.getElementById("meeting-title");
-      const meetingDate = document.getElementById("meeting-date");
-      const summaryContent = document.getElementById("summary-content");
+      const summaryDisplay = document.getElementById('summary-display');
+      const summaryEditor = document.getElementById('summary-editor');
+      const editSummaryBtn = document.getElementById('edit-summary-btn');
+      const saveSummaryBtn = document.getElementById('save-summary-btn');
+      const cancelEditBtn = document.getElementById('cancel-edit-btn');
+      const applyEditBtn = document.getElementById('apply-edit-btn');
+      const meetingTitle = document.getElementById('meeting-title');
+      const meetingDate = document.getElementById('meeting-date');
+      const summaryContent = document.getElementById('summary-content');
 
       // Chat Elements
-      const chatToggle = document.getElementById("chat-toggle");
-      const chatPanel = document.getElementById("chat-panel");
-      const chatClose = document.getElementById("chat-close");
-      const chatInput = document.getElementById("chat-input");
-      const chatForm = document.getElementById("chat-form");
-      const chatMessages = document.getElementById("chat-messages");
-      const chatBadge = document.getElementById("chat-badge");
+      const chatToggle = document.getElementById('chat-toggle');
+      const chatPanel = document.getElementById('chat-panel');
+      const chatClose = document.getElementById('chat-close');
+      const chatInput = document.getElementById('chat-input');
+      const chatForm = document.getElementById('chat-form');
+      const chatMessages = document.getElementById('chat-messages');
+      const chatBadge = document.getElementById('chat-badge');
 
-      let currentText = "";
+      let currentText = '';
       let currentSummaryData = null;
       let isUploading = false;
       let isPanelOpen = false;
       let currentMeetingData = null; // Store current meeting for export/share
-      let lastSearchQuery = ""; // Store last search query for highlighting
+      let lastSearchQuery = ''; // Store last search query for highlighting
 
       // Utility Functions
-      function showLoading(show, message = "Đang xử lý...") {
+      function showLoading(show, message = 'Đang xử lý...') {
         if (show) {
-          loading.style.display = "flex";
-          const loadingText = loading.querySelector("p");
+          loading.style.display = 'flex';
+          const loadingText = loading.querySelector('p');
           if (loadingText) {
             loadingText.textContent = message;
           }
         } else {
-          loading.style.display = "none";
+          loading.style.display = 'none';
         }
       }
 
-      function showToast(message, type = "info") {
-        const toast = document.getElementById("toast");
+      function showToast(message, type = 'info') {
+        const toast = document.getElementById('toast');
         toast.textContent = message;
         toast.className = `toast ${type} show`;
         setTimeout(() => {
-          toast.classList.remove("show");
+          toast.classList.remove('show');
         }, 3000);
       }
 
       // File input change handler
-      fileInput.addEventListener("change", () => {
+      fileInput.addEventListener('change', () => {
         if (fileInput.files.length > 0) {
           fileNameText.textContent = fileInput.files[0].name;
-          fileName.style.display = "inline-flex";
-          uploadArea.classList.add("has-file");
-          uploadBtn.style.display = "inline-flex";
-          uploadStatus.style.display = "none";
+          fileName.style.display = 'inline-flex';
+          uploadArea.classList.add('has-file');
+          uploadBtn.style.display = 'inline-flex';
+          uploadStatus.style.display = 'none';
         }
       });
 
       // Helper function to check if file is audio
       function isAudioFile(filename) {
         const audioExtensions = ['.mp3', '.wav', '.m4a'];
-        return audioExtensions.some(ext => filename.toLowerCase().endsWith(ext));
+        return audioExtensions.some((ext) =>
+          filename.toLowerCase().endsWith(ext)
+        );
       }
 
       // Helper function to stream progress updates
       async function handleAudioFileWithProgress(file) {
         const formData = new FormData();
-        formData.append("meeting_file", file);
-        formData.append("stream", "true");
+        formData.append('meeting_file', file);
+        formData.append('stream', 'true');
 
         // Upload and start processing
-        const response = await fetch("/load_file", {
-          method: "POST",
+        const response = await fetch('/load_file', {
+          method: 'POST',
           body: formData,
         });
 
         const data = await response.json();
 
         if (!data.success || !data.task_id) {
-          throw new Error(data.error || "Failed to start processing");
+          throw new Error(data.error || 'Failed to start processing');
         }
 
         const taskId = data.task_id;
@@ -509,23 +569,30 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
                 // Hide loading overlay to show streaming text!
                 showLoading(false);
 
-                console.log("📝 Streaming text update:", update.partial_text.length, "characters");
+                console.log(
+                  '📝 Streaming text update:',
+                  update.partial_text.length,
+                  'characters'
+                );
 
                 // Show text with typing indicator during streaming
                 if (!update.is_complete) {
-                  originalText.textContent = update.partial_text + " ▋";
+                  originalText.textContent = update.partial_text + ' ▋';
                 } else {
                   originalText.textContent = update.partial_text;
                 }
 
                 // Make sure it's visible
-                originalText.style.opacity = "1";
-                originalText.style.visibility = "visible";
+                originalText.style.opacity = '1';
+                originalText.style.visibility = 'visible';
 
                 // Auto scroll to bottom to show new text
                 originalText.scrollTop = originalText.scrollHeight;
 
-                console.log("✅ Text displayed:", originalText.textContent.substring(0, 50) + "...");
+                console.log(
+                  '✅ Text displayed:',
+                  originalText.textContent.substring(0, 50) + '...'
+                );
               }
 
               // Check if complete
@@ -535,43 +602,43 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
 
                 // Fetch the result
                 fetch(`/task_result/${taskId}`)
-                  .then(res => res.json())
-                  .then(result => {
+                  .then((res) => res.json())
+                  .then((result) => {
                     if (result.success) {
                       resolve(result);
                     } else {
-                      reject(new Error(result.error || "Processing failed"));
+                      reject(new Error(result.error || 'Processing failed'));
                     }
                   })
                   .catch(reject);
-              } else if (update.message && update.message.includes("Lỗi")) {
+              } else if (update.message && update.message.includes('Lỗi')) {
                 // Error occurred
                 eventSource.close();
                 reject(new Error(update.message));
               }
             } catch (err) {
-              console.error("Error parsing progress update:", err);
+              console.error('Error parsing progress update:', err);
             }
           };
 
           eventSource.onerror = (error) => {
-            console.error("EventSource error:", error);
+            console.error('EventSource error:', error);
             eventSource.close();
-            reject(new Error("Connection to progress stream failed"));
+            reject(new Error('Connection to progress stream failed'));
           };
 
           // Timeout after 5 minutes
           setTimeout(() => {
             if (!isComplete) {
               eventSource.close();
-              reject(new Error("Processing timeout"));
+              reject(new Error('Processing timeout'));
             }
           }, 300000);
         });
       }
 
       // Upload button click handler
-      uploadBtn.addEventListener("click", async (e) => {
+      uploadBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -580,7 +647,7 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
         }
 
         if (!fileInput.files || fileInput.files.length === 0) {
-          showToast("Vui lòng chọn file trước khi tải lên.", "error");
+          showToast('Vui lòng chọn file trước khi tải lên.', 'error');
           return;
         }
 
@@ -595,19 +662,19 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
 
           if (isAudio) {
             // Clear original text area to prepare for streaming
-            originalText.textContent = "Đang xử lý...";
+            originalText.textContent = 'Đang xử lý...';
 
             // Use streaming for audio files
-            showLoading(true, "Đang tải lên file audio...");
+            showLoading(true, 'Đang tải lên file audio...');
             data = await handleAudioFileWithProgress(file);
           } else {
             // Regular upload for text files
             const formData = new FormData();
-            formData.append("meeting_file", file);
-            showLoading(true, "Đang tải lên file...");
+            formData.append('meeting_file', file);
+            showLoading(true, 'Đang tải lên file...');
 
-            const response = await fetch("/load_file", {
-              method: "POST",
+            const response = await fetch('/load_file', {
+              method: 'POST',
               body: formData,
             });
 
@@ -619,56 +686,56 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
           uploadBtn.disabled = false;
 
           if (data.error) {
-            originalText.textContent = "Lỗi: " + data.error;
-            showToast("Lỗi: " + data.error, "error");
+            originalText.textContent = 'Lỗi: ' + data.error;
+            showToast('Lỗi: ' + data.error, 'error');
           } else if (data.success) {
-            currentText = data.text || "";
+            currentText = data.text || '';
 
             // Update original text display
             if (currentText) {
               originalText.textContent = currentText;
             } else {
-              originalText.textContent = "(Không thể trích xuất nội dung)";
+              originalText.textContent = '(Không thể trích xuất nội dung)';
             }
 
             // Reset summary text
             summaryText.textContent = "Nhấn 'Tạo bản tóm tắt' để nhận tóm tắt.";
 
             // Show the summarize button
-            summarizeBtn.classList.remove("hidden");
+            summarizeBtn.classList.remove('hidden');
 
             // Show upload success status
-            uploadBtn.style.display = "none";
-            fileName.style.display = "none";
-            uploadStatus.style.display = "flex";
+            uploadBtn.style.display = 'none';
+            fileName.style.display = 'none';
+            uploadStatus.style.display = 'flex';
             uploadedFilename.textContent = data.filename;
 
             showToast(
               `Tải file thành công! (${data.length.toLocaleString()} ký tự)`,
-              "success"
+              'success'
             );
 
             // Reset summary section
-            editSummaryBtn.classList.remove("show");
-            saveSummaryBtn.classList.remove("show");
-            summaryDisplay.style.display = "block";
-            summaryEditor.style.display = "none";
+            editSummaryBtn.classList.remove('show');
+            saveSummaryBtn.classList.remove('show');
+            summaryDisplay.style.display = 'block';
+            summaryEditor.style.display = 'none';
             currentSummaryData = null;
           } else {
-            showToast("Lỗi: Phản hồi không hợp lệ", "error");
+            showToast('Lỗi: Phản hồi không hợp lệ', 'error');
           }
         } catch (err) {
           showLoading(false);
           isUploading = false;
           uploadBtn.disabled = false;
-          originalText.textContent = "Lỗi khi tải file.";
-          showToast("Lỗi khi tải file: " + err.message, "error");
+          originalText.textContent = 'Lỗi khi tải file.';
+          showToast('Lỗi khi tải file: ' + err.message, 'error');
           console.error(err);
         }
       });
 
       // Drag and Drop
-      ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((eventName) => {
         uploadArea.addEventListener(eventName, preventDefaults, false);
       });
 
@@ -677,68 +744,68 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
         e.stopPropagation();
       }
 
-      ["dragenter", "dragover"].forEach((eventName) => {
+      ['dragenter', 'dragover'].forEach((eventName) => {
         uploadArea.addEventListener(eventName, () => {
-          uploadArea.classList.add("highlight");
+          uploadArea.classList.add('highlight');
         });
       });
 
-      ["dragleave", "drop"].forEach((eventName) => {
+      ['dragleave', 'drop'].forEach((eventName) => {
         uploadArea.addEventListener(eventName, () => {
-          uploadArea.classList.remove("highlight");
+          uploadArea.classList.remove('highlight');
         });
       });
 
-      uploadArea.addEventListener("drop", (e) => {
+      uploadArea.addEventListener('drop', (e) => {
         const files = e.dataTransfer.files;
         if (files.length > 0) {
           fileInput.files = files;
           fileNameText.textContent = files[0].name;
-          fileName.style.display = "inline-flex";
-          uploadArea.classList.add("has-file");
-          uploadBtn.style.display = "inline-flex";
-          uploadStatus.style.display = "none";
+          fileName.style.display = 'inline-flex';
+          uploadArea.classList.add('has-file');
+          uploadBtn.style.display = 'inline-flex';
+          uploadStatus.style.display = 'none';
         }
       });
 
       // Click on upload area to select file
-      uploadArea.addEventListener("click", (e) => {
+      uploadArea.addEventListener('click', (e) => {
         if (
-          !e.target.closest("label") &&
-          !e.target.closest("button") &&
-          !e.target.closest("input")
+          !e.target.closest('label') &&
+          !e.target.closest('button') &&
+          !e.target.closest('input')
         ) {
           fileInput.click();
         }
       });
 
       // Summarize
-      summarizeBtn.addEventListener("click", async () => {
-        const textToSummarize = currentText || originalText.textContent || "";
+      summarizeBtn.addEventListener('click', async () => {
+        const textToSummarize = currentText || originalText.textContent || '';
         if (
           !textToSummarize ||
-          textToSummarize === "Chưa có nội dung. Vui lòng tải lên file."
+          textToSummarize === 'Chưa có nội dung. Vui lòng tải lên file.'
         ) {
           showToast(
-            "Không có nội dung để tóm tắt. Vui lòng tải lên file.",
-            "error"
+            'Không có nội dung để tóm tắt. Vui lòng tải lên file.',
+            'error'
           );
           return;
         }
 
-        showLoading(true, "Đang tạo tóm tắt...");
+        showLoading(true, 'Đang tạo tóm tắt...');
         try {
-          const response = await fetch("/summarize", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+          const response = await fetch('/summarize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: textToSummarize }),
           });
           const data = await response.json();
           showLoading(false);
 
           if (data.error) {
-            summaryText.textContent = "Lỗi: " + data.error;
-            showToast("Lỗi: " + data.error, "error");
+            summaryText.textContent = 'Lỗi: ' + data.error;
+            showToast('Lỗi: ' + data.error, 'error');
           } else {
             currentSummaryData = {
               summary: data.summary,
@@ -747,59 +814,59 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
             };
 
             summaryText.textContent = data.summary;
-            editSummaryBtn.classList.add("show");
-            saveSummaryBtn.classList.add("show");
-            showToast("Tóm tắt hoàn tất!", "success");
+            editSummaryBtn.classList.add('show');
+            saveSummaryBtn.classList.add('show');
+            showToast('Tóm tắt hoàn tất!', 'success');
           }
         } catch (err) {
           showLoading(false);
-          summaryText.textContent = "Lỗi khi tạo tóm tắt.";
-          showToast("Lỗi khi tạo tóm tắt.", "error");
+          summaryText.textContent = 'Lỗi khi tạo tóm tắt.';
+          showToast('Lỗi khi tạo tóm tắt.', 'error');
           console.error(err);
         }
       });
 
       // Summary editing functions
-      editSummaryBtn.addEventListener("click", () => {
+      editSummaryBtn.addEventListener('click', () => {
         if (currentSummaryData) {
-          meetingTitle.value = currentSummaryData.title || "";
-          meetingDate.value = currentSummaryData.date || "";
-          summaryContent.value = currentSummaryData.summary || "";
+          meetingTitle.value = currentSummaryData.title || '';
+          meetingDate.value = currentSummaryData.date || '';
+          summaryContent.value = currentSummaryData.summary || '';
 
-          summaryDisplay.style.display = "none";
-          summaryEditor.style.display = "block";
+          summaryDisplay.style.display = 'none';
+          summaryEditor.style.display = 'block';
         }
       });
 
-      cancelEditBtn.addEventListener("click", () => {
-        summaryDisplay.style.display = "block";
-        summaryEditor.style.display = "none";
+      cancelEditBtn.addEventListener('click', () => {
+        summaryDisplay.style.display = 'block';
+        summaryEditor.style.display = 'none';
       });
 
-      applyEditBtn.addEventListener("click", () => {
+      applyEditBtn.addEventListener('click', () => {
         if (currentSummaryData) {
           currentSummaryData.title = meetingTitle.value;
           currentSummaryData.date = meetingDate.value;
           currentSummaryData.summary = summaryContent.value;
           summaryText.textContent = summaryContent.value;
         }
-        summaryDisplay.style.display = "block";
-        summaryEditor.style.display = "none";
-        showToast("Đã cập nhật bản tóm tắt!", "success");
+        summaryDisplay.style.display = 'block';
+        summaryEditor.style.display = 'none';
+        showToast('Đã cập nhật bản tóm tắt!', 'success');
       });
 
       // ============ SAVE SUMMARY BUTTON HANDLER ============
-      saveSummaryBtn.addEventListener("click", async () => {
+      saveSummaryBtn.addEventListener('click', async () => {
         if (!currentSummaryData) {
-          showToast("Không có dữ liệu để lưu.", "error");
+          showToast('Không có dữ liệu để lưu.', 'error');
           return;
         }
 
-        showLoading(true, "Đang lưu bản tóm tắt vào folder output...");
+        showLoading(true, 'Đang lưu bản tóm tắt vào folder output...');
         try {
-          const response = await fetch("/save_summary", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+          const response = await fetch('/save_summary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               summary: currentSummaryData.summary,
               title: currentSummaryData.title,
@@ -810,47 +877,47 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
           showLoading(false);
 
           if (data.error) {
-            showToast("Lỗi khi lưu: " + data.error, "error");
+            showToast('Lỗi khi lưu: ' + data.error, 'error');
           } else {
-            showToast(`✅ Đã lưu vào output/${data.filename}`, "success");
+            showToast(`✅ Đã lưu vào output/${data.filename}`, 'success');
             saveSummaryBtn.disabled = true;
-            console.log("✅ File saved successfully to:", data.filepath);
-            console.log("📁 Filename:", data.filename);
+            console.log('✅ File saved successfully to:', data.filepath);
+            console.log('📁 Filename:', data.filename);
 
             // Update library count
             loadMeetingsCount();
           }
         } catch (err) {
           showLoading(false);
-          showToast("Lỗi khi lưu bản tóm tắt.", "error");
-          console.error("❌ Save error:", err);
+          showToast('Lỗi khi lưu bản tóm tắt.', 'error');
+          console.error('❌ Save error:', err);
         }
       });
 
       // Chat Functions
       function openChat() {
-        chatPanel.classList.add("open");
-        chatToggle.classList.add("active");
+        chatPanel.classList.add('open');
+        chatToggle.classList.add('active');
         isPanelOpen = true;
-        chatBadge.style.display = "none";
+        chatBadge.style.display = 'none';
         setTimeout(() => chatInput.focus(), 300);
       }
 
       function closeChat() {
-        chatPanel.classList.remove("open");
-        chatToggle.classList.remove("active");
+        chatPanel.classList.remove('open');
+        chatToggle.classList.remove('active');
         isPanelOpen = false;
       }
 
       function showChatNotification() {
         if (!isPanelOpen) {
-          chatBadge.style.display = "flex";
-          chatToggle.classList.add("pulse");
-          setTimeout(() => chatToggle.classList.remove("pulse"), 2000);
+          chatBadge.style.display = 'flex';
+          chatToggle.classList.add('pulse');
+          setTimeout(() => chatToggle.classList.remove('pulse'), 2000);
         }
       }
 
-      chatToggle.addEventListener("click", () => {
+      chatToggle.addEventListener('click', () => {
         if (isPanelOpen) {
           closeChat();
         } else {
@@ -858,13 +925,13 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
         }
       });
 
-      chatClose.addEventListener("click", closeChat);
+      chatClose.addEventListener('click', closeChat);
 
-      function appendMessage(text, type = "user", meetings = []) {
-        const messageDiv = document.createElement("div");
+      function appendMessage(text, type = 'user', meetings = []) {
+        const messageDiv = document.createElement('div');
         messageDiv.className = `chat-message ${type}`;
 
-        if (type === "ai") {
+        if (type === 'ai') {
           let bubbleContent = `<div>${text}</div>`;
 
           // Add meeting cards if multiple meetings are found
@@ -930,9 +997,9 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
         chatMessages.appendChild(messageDiv);
 
         // Attach click handlers to meeting cards
-        if (type === "ai" && meetings && meetings.length > 0) {
+        if (type === 'ai' && meetings && meetings.length > 0) {
           const cards = messageDiv.querySelectorAll('.meeting-card');
-          cards.forEach(card => {
+          cards.forEach((card) => {
             card.addEventListener('click', () => {
               const meetingIndex = parseInt(card.dataset.meetingIndex);
               const meeting = meetings[meetingIndex];
@@ -945,9 +1012,9 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
       }
 
       function showTypingIndicator() {
-        const typingDiv = document.createElement("div");
-        typingDiv.className = "chat-message ai typing-indicator";
-        typingDiv.id = "typing-indicator";
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'chat-message ai typing-indicator';
+        typingDiv.id = 'typing-indicator';
         typingDiv.innerHTML = `
           <div class="message-avatar">
             <i class="fas fa-robot"></i>
@@ -965,7 +1032,7 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
       }
 
       function removeTypingIndicator() {
-        const indicator = document.getElementById("typing-indicator");
+        const indicator = document.getElementById('typing-indicator');
         if (indicator) {
           indicator.remove();
         }
@@ -974,27 +1041,53 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
       // Meeting Detail Modal Functions
       const meetingModal = document.getElementById('meeting-modal');
       const modalCloseBtn = document.getElementById('modal-close-btn');
-      const modalCloseFooterBtn = document.getElementById('modal-close-footer-btn');
+      const modalCloseFooterBtn = document.getElementById(
+        'modal-close-footer-btn'
+      );
 
       // Helper function to highlight search terms - IMPROVED VERSION
       function highlightSearchTerms(text, query) {
         if (!query || query.length < 2) return text;
 
         // Extract keywords from query (remove common Vietnamese & English stopwords)
-        const stopWords = ['cuộc', 'họp', 'về', 'gì', 'là', 'có', 'được', 'không', 'nào', 'của', 'cho',
-                          'the', 'what', 'when', 'where', 'how', 'why', 'who', 'and', 'or', 'in', 'on', 'at'];
+        const stopWords = [
+          'cuộc',
+          'họp',
+          'về',
+          'gì',
+          'là',
+          'có',
+          'được',
+          'không',
+          'nào',
+          'của',
+          'cho',
+          'the',
+          'what',
+          'when',
+          'where',
+          'how',
+          'why',
+          'who',
+          'and',
+          'or',
+          'in',
+          'on',
+          'at',
+        ];
 
-        const keywords = query.toLowerCase()
+        const keywords = query
+          .toLowerCase()
           .split(/\s+/)
-          .filter(word => word.length > 2 && !stopWords.includes(word))
-          .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // Escape regex special chars
+          .filter((word) => word.length > 2 && !stopWords.includes(word))
+          .map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // Escape regex special chars
 
         if (keywords.length === 0) return text;
 
         let highlightedText = text;
 
         // Highlight each keyword
-        keywords.forEach(keyword => {
+        keywords.forEach((keyword) => {
           // Use word boundary for better matching
           const regex = new RegExp(`\\b(${keyword})\\b`, 'gi');
           highlightedText = highlightedText.replace(regex, (match) => {
@@ -1009,11 +1102,13 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
       // Scroll to first highlight in modal
       function scrollToFirstHighlight() {
         setTimeout(() => {
-          const firstHighlight = document.querySelector('.meeting-modal-body .search-highlight');
+          const firstHighlight = document.querySelector(
+            '.meeting-modal-body .search-highlight'
+          );
           if (firstHighlight) {
             firstHighlight.scrollIntoView({
               behavior: 'smooth',
-              block: 'center'
+              block: 'center',
             });
             // Add extra pulse effect to first highlight
             firstHighlight.style.animation = 'highlightPulse 1s ease-in-out 3';
@@ -1026,9 +1121,12 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
         currentMeetingData = meeting;
 
         // Populate modal with meeting data
-        document.getElementById('modal-meeting-title').textContent = meeting.title || 'Không có tiêu đề';
-        document.getElementById('modal-meeting-date').textContent = meeting.date || 'N/A';
-        document.getElementById('modal-meeting-filename').textContent = meeting.filename || meeting.id || 'N/A';
+        document.getElementById('modal-meeting-title').textContent =
+          meeting.title || 'Không có tiêu đề';
+        document.getElementById('modal-meeting-date').textContent =
+          meeting.date || 'N/A';
+        document.getElementById('modal-meeting-filename').textContent =
+          meeting.filename || meeting.id || 'N/A';
 
         // Display meeting content directly (summary is included in meeting data from backend)
         const modalContent = document.getElementById('modal-meeting-content');
@@ -1037,7 +1135,10 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
           // Format the summary with nice sections
           let summaryHTML = meeting.summary
             .replace(/\n/g, '<br>')
-            .replace(/(## |### )(.*?)(<br>|$)/g, '<h4 style="margin-top: 20px; margin-bottom: 12px; color: var(--primary);"><i class="fas fa-bookmark"></i> $2</h4>')
+            .replace(
+              /(## |### )(.*?)(<br>|$)/g,
+              '<h4 style="margin-top: 20px; margin-bottom: 12px; color: var(--primary);"><i class="fas fa-bookmark"></i> $2</h4>'
+            )
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
           // Highlight search terms if available
@@ -1074,7 +1175,9 @@ Bản tóm tắt sẽ xuất hiện ở đây sau khi xử lý.</pre
         const quickAskBtn = document.getElementById('quick-ask-btn');
         const quickSummaryBtn = document.getElementById('quick-summary-btn');
         const quickActionsBtn = document.getElementById('quick-actions-btn');
-        const quickDecisionsBtn = document.getElementById('quick-decisions-btn');
+        const quickDecisionsBtn = document.getElementById(
+          'quick-decisions-btn'
+        );
 
         // Helper function for smooth quick action execution
         function executeQuickAction(query, autoSubmit = true) {
@@ -1170,7 +1273,10 @@ Generated: ${new Date().toLocaleString('vi-VN')}
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${meeting.date}_${meeting.title.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+        a.download = `${meeting.date}_${meeting.title.replace(
+          /[^a-zA-Z0-9]/g,
+          '_'
+        )}.txt`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1187,15 +1293,18 @@ Generated: ${new Date().toLocaleString('vi-VN')}
         }
 
         const meeting = currentMeetingData;
-        const content = `📋 ${meeting.title}\n📅 ${meeting.date}\n\n${meeting.summary || 'No content'}`;
+        const content = `📋 ${meeting.title}\n📅 ${meeting.date}\n\n${
+          meeting.summary || 'No content'
+        }`;
 
         // Use modern clipboard API
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(content)
+          navigator.clipboard
+            .writeText(content)
             .then(() => {
               showToast('✅ Đã sao chép vào clipboard!', 'success');
             })
-            .catch(err => {
+            .catch((err) => {
               console.error('Clipboard error:', err);
               fallbackCopyToClipboard(content);
             });
@@ -1251,7 +1360,7 @@ Generated: ${new Date().toLocaleString('vi-VN')}
       });
 
       // Chat Form Submit
-      chatForm.addEventListener("submit", async (e) => {
+      chatForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const question = chatInput.value.trim();
         if (!question) return;
@@ -1259,14 +1368,14 @@ Generated: ${new Date().toLocaleString('vi-VN')}
         // Store search query for highlighting
         lastSearchQuery = question;
 
-        appendMessage(question, "user");
-        chatInput.value = "";
+        appendMessage(question, 'user');
+        chatInput.value = '';
         showTypingIndicator();
 
         try {
-          const response = await fetch("/chatbot", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+          const response = await fetch('/chatbot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ question: question, text: currentText }),
           });
           const data = await response.json();
@@ -1275,59 +1384,59 @@ Generated: ${new Date().toLocaleString('vi-VN')}
           const answer =
             data.answer ||
             data.response ||
-            "Xin lỗi, tôi không thể trả lời câu hỏi này.";
+            'Xin lỗi, tôi không thể trả lời câu hỏi này.';
 
           // Pass meetings data to appendMessage if available
           const meetings = data.meetings || [];
           console.log('📊 Meetings found:', meetings.length);
           console.log('🔍 Search query stored:', lastSearchQuery);
 
-          appendMessage(answer, "ai", meetings);
+          appendMessage(answer, 'ai', meetings);
         } catch (err) {
           removeTypingIndicator();
-          appendMessage("Lỗi: không thể kết nối máy chủ.", "ai");
+          appendMessage('Lỗi: không thể kết nối máy chủ.', 'ai');
           console.error(err);
         }
       });
 
       // Suggestion Chips
       function attachSuggestionListeners() {
-        const suggestionChips = document.querySelectorAll(".suggestion-chip");
+        const suggestionChips = document.querySelectorAll('.suggestion-chip');
         suggestionChips.forEach((chip) => {
-          chip.addEventListener("click", () => {
-            const question = chip.getAttribute("data-question");
+          chip.addEventListener('click', () => {
+            const question = chip.getAttribute('data-question');
             if (question) {
               chatInput.value = question;
-              chatForm.dispatchEvent(new Event("submit"));
+              chatForm.dispatchEvent(new Event('submit'));
             }
           });
         });
 
         // List meetings button
-        const listMeetingsBtn = document.getElementById("list-meetings-btn");
+        const listMeetingsBtn = document.getElementById('list-meetings-btn');
         if (listMeetingsBtn) {
-          listMeetingsBtn.addEventListener("click", async () => {
+          listMeetingsBtn.addEventListener('click', async () => {
             showTypingIndicator();
             try {
-              const response = await fetch("/list_meetings", { method: "GET" });
+              const response = await fetch('/list_meetings', { method: 'GET' });
               const data = await response.json();
               removeTypingIndicator();
 
               if (data.meetings && data.meetings.length > 0) {
-                let message = "📅 **Danh sách cuộc họp:**\n\n";
+                let message = '📅 **Danh sách cuộc họp:**\n\n';
                 data.meetings.forEach((meeting, index) => {
                   message += `${index + 1}. Ngày: ${
                     meeting.date
                   }\n   - Tiêu đề: ${meeting.title}\n`;
                 });
-                message += "\n💡 Bạn có thể hỏi về bất kỳ cuộc họp nào!";
-                appendMessage(message, "ai");
+                message += '\n💡 Bạn có thể hỏi về bất kỳ cuộc họp nào!';
+                appendMessage(message, 'ai');
               } else {
-                appendMessage("⚠️ Chưa có cuộc họp nào được lưu.", "ai");
+                appendMessage('⚠️ Chưa có cuộc họp nào được lưu.', 'ai');
               }
             } catch (err) {
               removeTypingIndicator();
-              appendMessage("Lỗi: không thể lấy danh sách cuộc họp.", "ai");
+              appendMessage('Lỗi: không thể lấy danh sách cuộc họp.', 'ai');
               console.error(err);
             }
           });
@@ -1340,7 +1449,7 @@ Generated: ${new Date().toLocaleString('vi-VN')}
       // Load initial chatbot message with meeting list
       async function loadInitialChatMessage() {
         try {
-          const response = await fetch("/list_meetings", { method: "GET" });
+          const response = await fetch('/list_meetings', { method: 'GET' });
           const data = await response.json();
 
           let welcomeMessage = `<p><strong>Xin chào! 👋</strong></p>
@@ -1379,8 +1488,8 @@ Generated: ${new Date().toLocaleString('vi-VN')}
               </ul>`;
           }
 
-          const messageDiv = document.createElement("div");
-          messageDiv.className = "chat-message ai";
+          const messageDiv = document.createElement('div');
+          messageDiv.className = 'chat-message ai';
           messageDiv.innerHTML = `
             <div class="message-avatar">
               <i class="fas fa-robot"></i>
@@ -1391,10 +1500,10 @@ Generated: ${new Date().toLocaleString('vi-VN')}
           `;
           chatMessages.appendChild(messageDiv);
         } catch (err) {
-          console.error("Error loading initial chat message:", err);
+          console.error('Error loading initial chat message:', err);
           // Fallback message if API fails
-          const messageDiv = document.createElement("div");
-          messageDiv.className = "chat-message ai";
+          const messageDiv = document.createElement('div');
+          messageDiv.className = 'chat-message ai';
           messageDiv.innerHTML = `
             <div class="message-avatar">
               <i class="fas fa-robot"></i>
@@ -1412,7 +1521,7 @@ Generated: ${new Date().toLocaleString('vi-VN')}
       loadInitialChatMessage();
 
       // Close chat when clicking outside
-      document.addEventListener("click", (e) => {
+      document.addEventListener('click', (e) => {
         if (
           isPanelOpen &&
           !chatPanel.contains(e.target) &&
@@ -1427,7 +1536,9 @@ Generated: ${new Date().toLocaleString('vi-VN')}
       const librarySidebar = document.getElementById('library-sidebar');
       const libraryCloseBtn = document.getElementById('library-close-btn');
       const libraryContent = document.getElementById('library-content');
-      const librarySearchInput = document.getElementById('library-search-input');
+      const librarySearchInput = document.getElementById(
+        'library-search-input'
+      );
       const libraryCount = document.getElementById('library-count');
       const librarySubtitle = document.getElementById('library-subtitle');
 
@@ -1548,7 +1659,7 @@ Generated: ${new Date().toLocaleString('vi-VN')}
 
         libraryContent.innerHTML = '';
 
-        meetings.forEach(meeting => {
+        meetings.forEach((meeting) => {
           const card = createMeetingCard(meeting);
           libraryContent.appendChild(card);
         });
@@ -1571,7 +1682,9 @@ Generated: ${new Date().toLocaleString('vi-VN')}
 
         card.innerHTML = `
           <div class="library-card-header">
-            <h3 class="library-card-title">${meeting.title || 'Cuộc họp không có tiêu đề'}</h3>
+            <h3 class="library-card-title">${
+              meeting.title || 'Cuộc họp không có tiêu đề'
+            }</h3>
           </div>
           <div class="library-card-date">
             <i class="fas fa-calendar"></i>
@@ -1629,26 +1742,26 @@ Generated: ${new Date().toLocaleString('vi-VN')}
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             query: meeting.title || meeting.filename,
-            n_results: 1
+            n_results: 1,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.results && data.results.length > 0) {
+              const fullMeeting = {
+                ...meeting,
+                summary: data.results[0].summary,
+                relevance: data.results[0].relevance * 100,
+              };
+              showMeetingDetails(fullMeeting);
+            } else {
+              showToast('Không thể tải nội dung cuộc họp', 'error');
+            }
           })
-        })
-        .then(res => res.json())
-        .then(data => {
-          if (data.results && data.results.length > 0) {
-            const fullMeeting = {
-              ...meeting,
-              summary: data.results[0].summary,
-              relevance: data.results[0].relevance * 100
-            };
-            showMeetingDetails(fullMeeting);
-          } else {
-            showToast('Không thể tải nội dung cuộc họp', 'error');
-          }
-        })
-        .catch(err => {
-          console.error('Error loading meeting:', err);
-          showToast('Lỗi khi tải cuộc họp', 'error');
-        });
+          .catch((err) => {
+            console.error('Error loading meeting:', err);
+            showToast('Lỗi khi tải cuộc họp', 'error');
+          });
       }
 
       // Delete meeting
@@ -1672,10 +1785,12 @@ Generated: ${new Date().toLocaleString('vi-VN')}
         if (query === '') {
           filteredMeetings = allMeetings;
         } else {
-          filteredMeetings = allMeetings.filter(meeting =>
-            (meeting.title && meeting.title.toLowerCase().includes(query)) ||
-            (meeting.filename && meeting.filename.toLowerCase().includes(query)) ||
-            (meeting.date && meeting.date.includes(query))
+          filteredMeetings = allMeetings.filter(
+            (meeting) =>
+              (meeting.title && meeting.title.toLowerCase().includes(query)) ||
+              (meeting.filename &&
+                meeting.filename.toLowerCase().includes(query)) ||
+              (meeting.date && meeting.date.includes(query))
           );
         }
 
@@ -1684,10 +1799,10 @@ Generated: ${new Date().toLocaleString('vi-VN')}
 
       // Filter functionality
       const filterChips = document.querySelectorAll('.filter-chip');
-      filterChips.forEach(chip => {
+      filterChips.forEach((chip) => {
         chip.addEventListener('click', () => {
           // Remove active from all
-          filterChips.forEach(c => c.classList.remove('active'));
+          filterChips.forEach((c) => c.classList.remove('active'));
           // Add active to clicked
           chip.classList.add('active');
 
@@ -1709,13 +1824,13 @@ Generated: ${new Date().toLocaleString('vi-VN')}
             toDisplay = toDisplay.slice(0, 10); // Show 10 most recent
             break;
           case 'thisweek':
-            toDisplay = toDisplay.filter(m => {
+            toDisplay = toDisplay.filter((m) => {
               const meetingDate = new Date(m.date);
               return meetingDate >= startOfWeek;
             });
             break;
           case 'thismonth':
-            toDisplay = toDisplay.filter(m => {
+            toDisplay = toDisplay.filter((m) => {
               const meetingDate = new Date(m.date);
               return meetingDate >= startOfMonth;
             });
@@ -1746,16 +1861,18 @@ Generated: ${new Date().toLocaleString('vi-VN')}
       // Initialize
       loadMeetingsCount();
 
-      console.log("✅ Meeting Summarizer initialized successfully");
-      console.log("📁 Summaries will be saved to: output/");
-      console.log("🤖 Chatbot will read from: output/");
-      console.log("📚 Library system loaded");
+      console.log('✅ Meeting Summarizer initialized successfully');
+      console.log('📁 Summaries will be saved to: output/');
+      console.log('🤖 Chatbot will read from: output/');
+      console.log('📚 Library system loaded');
 
       // ============ DATA MANAGEMENT FUNCTIONS ============
       const dataManagerModal = document.getElementById('data-manager-modal');
       const dataManagerToggle = document.getElementById('data-manager-toggle');
       const dataManagerClose = document.getElementById('data-manager-close');
-      const dataManagerContent = document.getElementById('data-manager-content');
+      const dataManagerContent = document.getElementById(
+        'data-manager-content'
+      );
       const dataRefresh = document.getElementById('data-refresh');
       const dataSearch = document.getElementById('data-search');
       const totalDocs = document.getElementById('total-docs');
@@ -1786,7 +1903,8 @@ Generated: ${new Date().toLocaleString('vi-VN')}
 
       async function loadAllData() {
         try {
-          dataManagerContent.innerHTML = '<p style="text-align:center;padding:40px;color:#999;">Đang tải...</p>';
+          dataManagerContent.innerHTML =
+            '<p style="text-align:center;padding:40px;color:#999;">Đang tải...</p>';
           const response = await fetch('/get_all_data');
           const data = await response.json();
 
@@ -1795,21 +1913,27 @@ Generated: ${new Date().toLocaleString('vi-VN')}
           displayDocuments(allDocuments);
         } catch (error) {
           console.error('Error loading data:', error);
-          dataManagerContent.innerHTML = '<p style="text-align:center;padding:40px;color:#f56565;">Lỗi tải dữ liệu</p>';
+          dataManagerContent.innerHTML =
+            '<p style="text-align:center;padding:40px;color:#f56565;">Lỗi tải dữ liệu</p>';
         }
       }
 
       function displayDocuments(docs) {
         if (!docs || docs.length === 0) {
-          dataManagerContent.innerHTML = '<p style="text-align:center;padding:40px;color:#999;">Không có dữ liệu</p>';
+          dataManagerContent.innerHTML =
+            '<p style="text-align:center;padding:40px;color:#999;">Không có dữ liệu</p>';
           return;
         }
 
-        dataManagerContent.innerHTML = docs.map(doc => `
+        dataManagerContent.innerHTML = docs
+          .map(
+            (doc) => `
           <div class="data-row" onclick="viewDocDetail('${doc.id}')">
             <div class="data-row-header">
               <div>
-                <h4 class="data-row-title">${doc.metadata.title || 'Không có tiêu đề'}</h4>
+                <h4 class="data-row-title">${
+                  doc.metadata.title || 'Không có tiêu đề'
+                }</h4>
                 <div class="data-row-id">ID: ${doc.id}</div>
               </div>
             </div>
@@ -1829,43 +1953,74 @@ Generated: ${new Date().toLocaleString('vi-VN')}
             </div>
             <div class="data-row-preview">${doc.content_preview}</div>
           </div>
-        `).join('');
+        `
+          )
+          .join('');
       }
 
       function viewDocDetail(docId) {
-        const doc = allDocuments.find(d => d.id === docId);
+        const doc = allDocuments.find((d) => d.id === docId);
         if (!doc) return;
 
         currentDocId = docId;
-        dataDetailBody.innerHTML = `
-          <div class="detail-section">
-            <h4><i class="fas fa-id-card"></i> Thông tin cơ bản</h4>
-            <div class="detail-field">
-              <span class="detail-label">Document ID:</span>
-              <span class="detail-value">${doc.id}</span>
-            </div>
-            <div class="detail-field">
-              <span class="detail-label">Tiêu đề:</span>
-              <span class="detail-value">${doc.metadata.title || 'N/A'}</span>
-            </div>
-            <div class="detail-field">
-              <span class="detail-label">Ngày:</span>
-              <span class="detail-value">${doc.metadata.date || 'N/A'}</span>
-            </div>
-            <div class="detail-field">
-              <span class="detail-label">Tên file:</span>
-              <span class="detail-value">${doc.metadata.filename || 'N/A'}</span>
-            </div>
-            <div class="detail-field">
-              <span class="detail-label">Độ dài:</span>
-              <span class="detail-value">${doc.content_length} ký tự</span>
-            </div>
-          </div>
-          <div class="detail-section">
-            <h4><i class="fas fa-file-alt"></i> Nội dung đầy đủ</h4>
-            <div class="detail-content">${doc.content}</div>
-          </div>
-        `;
+
+        const markdownToggle = document.getElementById('markdown-toggle');
+
+        const renderContent = (isMarkdown) => {
+          const content = doc.content || '';
+          let formattedContent;
+
+          if (isMarkdown) {
+            formattedContent = DOMPurify.sanitize(marked.parse(content));
+          } else {
+            const pre = document.createElement('pre');
+            pre.textContent = content;
+            formattedContent = pre.outerHTML;
+          }
+
+          dataDetailBody.innerHTML = `
+              <div class="detail-section">
+                <h4><i class="fas fa-id-card"></i> Thông tin cơ bản</h4>
+                <div class="detail-field">
+                  <span class="detail-label">Document ID:</span>
+                  <span class="detail-value">${doc.id}</span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Tiêu đề:</span>
+                  <span class="detail-value">${
+                    doc.metadata.title || 'N/A'
+                  }</span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Ngày:</span>
+                  <span class="detail-value">${
+                    doc.metadata.date || 'N/A'
+                  }</span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Tên file:</span>
+                  <span class="detail-value">${
+                    doc.metadata.filename || 'N/A'
+                  }</span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Độ dài:</span>
+                  <span class="detail-value">${doc.content_length} ký tự</span>
+                </div>
+              </div>
+              <div class="detail-section">
+                <h4><i class="fas fa-file-alt"></i> Nội dung đầy đủ</h4>
+                <div class="detail-content">${formattedContent}</div>
+              </div>
+            `;
+        };
+
+        renderContent(markdownToggle.checked);
+
+        markdownToggle.onchange = () => {
+          renderContent(markdownToggle.checked);
+        };
+
         dataDetailModal.classList.add('open');
       }
 
@@ -1882,10 +2037,13 @@ Generated: ${new Date().toLocaleString('vi-VN')}
 
       btnDeleteDoc.addEventListener('click', async () => {
         if (!currentDocId) return;
-        if (!confirm(`Bạn có chắc muốn xóa tài liệu "${currentDocId}"?`)) return;
+        if (!confirm(`Bạn có chắc muốn xóa tài liệu "${currentDocId}"?`))
+          return;
 
         try {
-          const response = await fetch(`/delete_document/${currentDocId}`, { method: 'DELETE' });
+          const response = await fetch(`/delete_document/${currentDocId}`, {
+            method: 'DELETE',
+          });
           const result = await response.json();
 
           if (result.success) {
@@ -1910,15 +2068,17 @@ Generated: ${new Date().toLocaleString('vi-VN')}
           return;
         }
 
-        const filtered = allDocuments.filter(doc =>
-          doc.id.toLowerCase().includes(query) ||
-          (doc.metadata.title && doc.metadata.title.toLowerCase().includes(query)) ||
-          (doc.metadata.date && doc.metadata.date.includes(query))
+        const filtered = allDocuments.filter(
+          (doc) =>
+            doc.id.toLowerCase().includes(query) ||
+            (doc.metadata.title &&
+              doc.metadata.title.toLowerCase().includes(query)) ||
+            (doc.metadata.date && doc.metadata.date.includes(query))
         );
         displayDocuments(filtered);
       });
 
-      console.log("🗄️ Data management system loaded");
+      console.log('🗄️ Data management system loaded');
     </script>
   </body>
 </html>
