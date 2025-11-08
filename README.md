@@ -337,6 +337,343 @@ validation = validate_answer_grounding(answer, context, client)
 
 Low-confidence answers get a disclaimer automatically.
 
+### 6. **Detailed Chatbot Flow (Step-by-Step)**
+
+The chatbot processes your questions through multiple stages to provide accurate, context-aware answers:
+
+#### **Stage 1: Input Reception & Session Management**
+```
+User Input: "Cuộc họp ngày 27/10 bàn về gì?"
+   ↓
+1. Load current session state:
+   - Chat history (last 20 messages)
+   - Current meeting context (if any)
+   - Previously discussed meetings list
+
+2. Clear session on new page load (automatic):
+   - POST /clear_session endpoint called on page load
+   - Resets: current_meeting_context, discussed_meetings, chat_history
+   - Ready for fresh conversation
+```
+
+#### **Stage 2: Question Classification & Intent Detection**
+
+```
+Question: "Cuộc họp ngày 27/10 bàn về gì?"
+   ↓
+📊 CLASSIFICATION LAYER:
+
+A) Date/Topic Classification (via GPT function calling):
+   - Detects date-based queries: "cuộc họp ngày X"
+   - Detects topic-based queries: "bàn về X", "meeting nào đề cập X"
+   - Extracts date if present: "27/10" → "2024-10-27"
+   - Classification type: "date" or "topic"
+
+B) Query Intention Classification (via keyword analysis):
+   - Analyzes: person_focused, task_focused, decision_focused, time_focused, etc.
+   - Confidence score: 0-1.0
+   - Extracted entities: people names, keywords, search indicators
+   - is_followup_question: True/False (affects context handling)
+
+C) General Question Detection (NEW):
+   - Keywords: "bao nhiêu", "tất cả", "tổng", "danh sách"
+   - If detected: searches ALL meetings (no date filter)
+   - Example: "Có tất cả bao nhiêu cuộc họp" → is_general_question=True
+```
+
+#### **Stage 3: Context-Aware Search Strategy**
+
+```
+   ↓
+🔍 SEARCH STRATEGY DECISION:
+
+Based on classification, determine search scope:
+
+SCENARIO 1: Date-based query
+   Q: "Cuộc họp ngày 27/10 bàn về gì?"
+   → date_filter = "2024-10-27"
+   → Search ONLY meetings on that date
+   → is_context_query = True
+
+SCENARIO 2: Follow-up question (with existing context)
+   Q1: "Cuộc họp ngày 27/10 bàn về gì?" → Sets context to 2024-10-27
+   Q2: "Dev A làm gì?"
+   → is_followup_question = True
+   → Use current_meeting_context = "2024-10-27"
+   → date_filter = "2024-10-27"
+   → is_context_query = True
+
+SCENARIO 3: New search query (across all meetings)
+   Q: "meeting nào đề cập Database tối ưu cho search"
+   → is_followup_question = False (has search keywords)
+   → is_general_question = False
+   → date_filter = None
+   → Search ALL meetings
+   → Updates context to top result meeting
+
+SCENARIO 4: General/Statistics query
+   Q: "Có tất cả bao nhiêu cuộc họp"
+   → is_general_question = True
+   → date_filter = None (SKIP context filter)
+   → Search ALL meetings
+   → DON'T filter results by context
+```
+
+#### **Stage 4: Semantic Vector Search (ChromaDB)**
+
+```
+   ↓
+🔎 SEMANTIC SEARCH:
+
+A) Query Preparation:
+   - Current question text
+   - Optional: date filter (if date-based)
+   - Optional: metadata filters (meeting type, has actions, etc.)
+
+B) Embedding Generation:
+   - Question converted to vector using OpenAI embeddings (text-embedding-3-small)
+   - Vector: 1536 dimensions
+
+C) ChromaDB Search:
+   - Compare question embedding with all meeting summaries
+   - Apply where_filter if date/context specified
+   - Returns top 10 semantic matches with similarity scores
+
+D) Intention-Based Filtering:
+   - If task_focused: prioritize documents with action items
+   - If person_focused: prioritize documents mentioning specific people
+   - If decision_focused: prioritize documents with decision info
+   - Apply similarity threshold based on intention type
+
+E) Context Filtering (CRITICAL FIX):
+   - IF is_followup_question=True AND current_context exists AND NOT is_general_question:
+     → Keep only results from context meeting date
+   - IF is_general_question=True:
+     → Use ALL results (no filtering)
+   - Result: 1-6 most relevant documents
+```
+
+#### **Stage 5: Context Building & Token Management**
+
+```
+   ↓
+📚 CONTEXT PREPARATION:
+
+For each search result (top 6):
+
+A) Extract Meeting Metadata:
+   - Title, date, participants, duration
+   - Meeting type, individual actions
+   - Participant roles and information
+
+B) Build Rich Context:
+   ```
+   ════════════════════════════════════════
+   [MEETING 1]
+   📅 Date: 2024-10-27
+   📌 Title: Sprint Planning Review
+   🏷️ Type: planning
+   👥 Participants: Dev A (Developer), PM Nam (PM), Tester B (Tester)
+   ⏱️ Duration: 65 minutes (09:00 - 10:05)
+   📝 Individual Actions:
+      • Dev A: Build authentication API (deadline: 2024-10-30)
+      • Tester B: Write integration tests
+   🎯 Relevance Score: 92%
+
+   📄 CONTENT:
+   [Full meeting summary text...]
+   ════════════════════════════════════════
+   ```
+C) Smart Token Truncation:
+   - Count tokens for entire context
+   - If exceeds 6000 tokens (max for GPT-4o-mini):
+     → Intelligently chunk by meeting sections
+     → Keep most relevant sections
+     → Compress less important details
+   - Final context: optimized for accuracy without exceeding limits
+```
+
+#### **Stage 6: System Prompt Engineering & AI Generation**
+
+```
+   ↓
+🤖 AI ANSWER GENERATION:
+
+A) Dynamic System Prompt:
+   - Base instruction: "You are an intelligent meeting assistant"
+   - Query intention guidance (adapted to question type)
+   - Special instructions for general questions:
+     "⭐ This is a statistics question - answer based on ALL meetings"
+   - Metadata usage guide: How to use participants, actions, roles
+   - Strict accuracy requirements: No hallucinations, must cite sources
+
+B) Chat History Integration:
+   - Include last 10 user-assistant exchanges
+   - GPT understands conversation context
+   - Helps with pronoun resolution ("this meeting" → previous meeting)
+
+C) GPT-4o-mini Generation:
+   - Input: [System Prompt] + [Chat History] + [Context] + [Question]
+   - Temperature: 0 (maximum accuracy, no randomness)
+   - Max tokens: 1500
+   - Response format: Flexible (JSON or plain text)
+
+D) Response Parsing:
+   - Try 4 parsing strategies:
+     1. Direct JSON parsing
+     2. Extract from code blocks
+     3. Extract with balanced braces
+     4. Create JSON from plain text response
+   - Result: Structured answer + meeting titles
+```
+
+#### **Stage 7: Validation & Hallucination Detection**
+
+```
+   ↓
+✅ ANSWER VALIDATION:
+
+A) Grounding Check:
+   - Is the answer supported by context?
+   - Can we find evidence in meeting summaries?
+   - Confidence level: high/medium/low
+
+B) Verification Process:
+   - GPT validates answer against context
+   - Generates verification percentage
+   - If low confidence (< 50%): Add disclaimer
+
+C) Confidence Assessment:
+   - High: "Based on the meeting summary..."
+   - Medium: "According to the meeting, it appears..."
+   - Low: "⚠️ I couldn't find clear information..."
+
+Example disclaimer:
+   "Note: This answer has lower confidence. Please refer to the original
+    meeting summary for verification."
+```
+
+#### **Stage 8: Session Update & Response Assembly**
+
+```
+   ↓
+💾 SESSION STATE UPDATE:
+
+A) Chat History:
+   - Add user question to history
+   - Add AI answer to history
+   - Keep last 20 messages for context
+
+B) Meeting Context Update (CRITICAL):
+   - If NEW SEARCH (is_followup=False):
+     → Update current_meeting_context to top result meeting
+     → Set context_was_just_updated = True
+   - If FOLLOW-UP (is_followup=True):
+     → Keep current context unchanged
+
+C) Multi-Meeting Tracking:
+   - Add new meeting to discussed_meetings list
+   - Track up to 5 meetings in conversation
+   - Used for "each/all meetings" queries
+
+Example state after Q1:
+   current_meeting_context = {
+     date: '2024-10-27',
+     title: 'Sprint Planning Review',
+     id: 'doc_123'
+   }
+   discussed_meetings = [{date: '2024-10-27', title: '...', id: '...'}]
+```
+
+#### **Stage 9: Final Response & Debugging Info**
+
+```
+   ↓
+📤 RETURN RESPONSE:
+
+```json
+{
+  "answer": "Cuộc họp ngày 27/10 bàn về Sprint Planning...",
+
+  "classification": {
+    "type": "date",
+    "date": "2024-10-27"
+  },
+
+  "query_intention": {
+    "type": "topic_focused",
+    "confidence": 0.85,
+    "reasoning": "Query detected as topic_focused...",
+    "extracted_entities": {
+      "people": [],
+      "keywords": ["sprint", "planning"]
+    }
+  },
+
+  "meetings": [
+    {
+      "date": "2024-10-27",
+      "title": "Sprint Planning Review",
+      "relevance": 92.5,
+      "id": "doc_123"
+    }
+  ],
+
+  "count": 1,
+
+  "validation": {
+    "is_grounded": true,
+    "confidence": "high"
+  },
+
+  "search_stats": {
+    "semantic_results": 1,
+    "context_tokens": 2345,
+    "search_type": "semantic_with_intention_filtering"
+  },
+
+  "context_used": true,
+  "current_meeting": {date: '2024-10-27', title: '...'},
+  "discussed_meetings": [{...}]
+}
+```
+```
+
+#### **Complete Example Flow: Q4 → Q5**
+
+```
+Q4: "meeting nào đề cập Database cần tối ưu cho search không?"
+   ↓
+Stage 2: is_followup_question=False (has "meeting nào", "đề cập")
+        is_general_question=False
+        intention_type=topic_focused
+   ↓
+Stage 3: NEW SEARCH mode (not a follow-up)
+        date_filter=None (search all)
+   ↓
+Stage 4: Find top match = 2024-10-17 meeting (Design Review)
+        similarity=0.89
+   ↓
+Stage 5-6: Build context, generate answer
+   ↓
+Stage 8: UPDATE context!
+        current_meeting_context = {date: '2024-10-17', title: 'Design Review'}
+
+Q5: "có những ai trong cuộc họp này?"
+   ↓
+Stage 2: is_followup_question=True (no search keywords)
+        is_general_question=False
+   ↓
+Stage 3: FOLLOW-UP mode
+        Use current_meeting_context['date'] = '2024-10-17' ← UPDATED!
+        date_filter='2024-10-17'
+   ↓
+Stage 4: Search only 2024-10-17 meeting
+        Find participant info from Design Review
+   ↓
+Stage 5-9: Generate answer about 2024-10-17 meeting participants ✅
+```
+
 ## ⚙️ Configuration
 
 ### Environment Variables
